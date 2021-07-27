@@ -5,11 +5,13 @@ Plugin class    : skd_seo
 Plugin uri      : https://sikido.vn
 Description     : Ứng dụng Tùy chỉnh SEO sẽ giúp bạn tự SEO hiệu quả cho website của mình
 Author          : SKDSoftware Dev Team
-Version         : 3.0.2
+Version         : 3.1.0
  */
-define( 'SKD_SEO_NAME', 'skd-seo' );
+define('SKD_SEO_NAME', 'skd-seo');
 
-define( 'SKD_SEO_PATH', plugin_dir_path( SKD_SEO_NAME ) );
+define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
+
+define('SKD_SEO_VERSION', '3.1.0');
 
 class skd_seo {
 
@@ -21,6 +23,7 @@ class skd_seo {
         $model = get_model()->settable('routes');
         //add sitemap to router
         $count = $model->count_where(array('slug' => 'sitemap.xml', 'plugin' => 'skd_seo'));
+
         if($count == 0) {
             $model->add(array(
                 'slug'        => 'sitemap.xml',
@@ -33,6 +36,7 @@ class skd_seo {
         }
         //add robots to router
         $count = $model->count_where(array('slug' => 'robots.txt', 'plugin' => 'skd_seo'));
+
         if($count == 0) {
             $model->add(array(
                 'slug'        => 'robots.txt',
@@ -44,7 +48,20 @@ class skd_seo {
             ));
         }
         //add setting
-        option::update( 'skd_seo_robots', '');
+        Option::update( 'skd_seo_robots', '');
+
+        $model->query("CREATE TABLE IF NOT EXISTS `".CLE_PREFIX."redirect` (
+            `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `path` varchar(255) COLLATE utf8mb4_unicode_ci NULL,
+            `to` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+            `type`  varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT '301',
+            `redirect` int(11) NOT NULL DEFAULT '0',
+            `order` int(11) NOT NULL DEFAULT '0',
+            `user_created` int(11) DEFAULT NULL,
+            `user_updated` int(11) DEFAULT NULL,
+            `created` datetime DEFAULT NULL,
+            `updated` datetime DEFAULT NULL
+        ) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
     }
 
     public function uninstall() {
@@ -141,7 +158,11 @@ class skd_seo {
 }
 
 include 'admin/point/skd-seo-point.php';
+
+include 'admin/404/404.php';
+
 if(Admin::is()) {
+    require_once 'update.php';
     require_once 'admin/index.php';
 }
 else {
