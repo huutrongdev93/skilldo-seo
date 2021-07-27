@@ -37,11 +37,7 @@ Class Seo_404 {
 
         if($page == '404-error') {
 
-            $redirect = [];
-
-            if(Seo_404::config('redirect_logs')) {
-                $redirect = Seo_404::logs();
-            }
+            $redirect = Seo_404::logs();
 
             $redirectConfig = [
                 'redirect_to' => Seo_404::config('redirect_to'),
@@ -83,10 +79,8 @@ Class Seo_404 {
         $url = str_replace($domain, '', $url);
         $url = trim($url, '/');
         $redirect = Seo_Redirect::get(['where' => ['path' => $url]]);
-        if(!have_posts($redirect)) {
-            Seo_Redirect::insert([
-                'path' => $url
-            ]);
+        if(!have_posts($redirect) && Seo_404::config('redirect_logs')) {
+            Seo_Redirect::insert(['path' => $url]);
             return 0;
         }
         return $redirect;
