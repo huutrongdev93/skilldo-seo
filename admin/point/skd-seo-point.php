@@ -3,11 +3,9 @@ Class SKD_Seo_Point {
     static public function module($key = '') {
         $module = apply_filters('seo_point_admin_module_enable', [
             'post_post' => 'post',
-            'post_photo' => 'post',
             'page' => 'page',
             'products' => 'product',
             'post_categories_post_categories' => 'post_category',
-            'post_categories_photo-category' => 'post_category',
             'products_categories' => 'product_category',
         ]);
         return (!empty($key)) ? Arr::get($module, $key) : $module;
