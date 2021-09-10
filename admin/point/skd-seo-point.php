@@ -1,39 +1,71 @@
 <?php
 Class SKD_Seo_Point {
+    static public function module($key = '') {
+        $module = apply_filters('seo_point_admin_module_enable', [
+            'post_post' => 'post',
+            'post_photo' => 'post',
+            'page' => 'page',
+            'products' => 'product',
+            'post_categories_post_categories' => 'post_category',
+            'post_categories_photo-category' => 'post_category',
+            'products_categories' => 'product_category',
+        ]);
+        return (!empty($key)) ? Arr::get($module, $key) : $module;
+    }
+
+    static public function page($key) {
+        $module = [
+            'post_index'        => 'post_category',
+            'post_detail'       => 'post',
+            'page_detail'       => 'page',
+            'products_index'   => 'product_category',
+            'products_detail'   => 'product',
+        ];
+        return Arr::get(apply_filters('seo_point_client_page_enable', $module), $key);
+    }
 
     static public function metabox($object, $metabox) {
 
         if(is_string($metabox)) $metabox = Metabox::get($metabox);
-
-        if($metabox['module'] == 'post_post') {
-            $focusKeyword   = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_focus_keyword', true) : '';
-            $robots         = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_robots', true) : [];
-            $seo_canonical  = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_canonical', true) : '';
-            $seo_schema     = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_schema', true) : [];
-        }
-        if($metabox['module'] == 'post_categories_post_categories') {
-            $focusKeyword   = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_focus_keyword', true) : '';
-            $robots         = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_robots', true) : [];
-            $seo_canonical  = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_canonical', true) : '';
-            $seo_schema     = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_schema', true) : [];
-        }
-        if($metabox['module'] == 'page') {
-            $focusKeyword   = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_focus_keyword', true) : '';
-            $robots         = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_robots', true) : [];
-            $seo_canonical  = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_canonical', true) : '';
-            $seo_schema     = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_schema', true) : [];
-        }
-        if($metabox['module'] == 'products') {
-            $focusKeyword   = (have_posts($object)) ? Product::getMeta($object->id, 'seo_focus_keyword', true) : '';
-            $robots         = (have_posts($object)) ? Product::getMeta($object->id, 'seo_robots', true) : [];
-            $seo_canonical  = (have_posts($object)) ? Product::getMeta($object->id, 'seo_canonical', true) : '';
-            $seo_schema     = (have_posts($object)) ? Product::getMeta($object->id, 'seo_schema', true) : [];
-        }
-        if($metabox['module'] == 'products_categories') {
-            $focusKeyword   = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_focus_keyword', true) : '';
-            $robots         = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_robots', true) : [];
-            $seo_canonical  = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_canonical', true) : '';
-            $seo_schema     = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_schema', true) : [];
+        if(!empty(SKD_Seo_Point::module($metabox['module']))) {
+            switch (SKD_Seo_Point::module($metabox['module'])) {
+                case 'post' :
+                    $focusKeyword   = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_focus_keyword', true) : '';
+                    $robots         = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_robots', true) : [];
+                    $seo_canonical  = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_canonical', true) : '';
+                    $seo_schema     = (have_posts($object)) ? Posts::getMeta($object->id, 'seo_schema', true) : [];
+                    break;
+                case 'page' :
+                    $focusKeyword   = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_focus_keyword', true) : '';
+                    $robots         = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_robots', true) : [];
+                    $seo_canonical  = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_canonical', true) : '';
+                    $seo_schema     = (have_posts($object)) ? Pages::getMeta($object->id, 'seo_schema', true) : [];
+                    break;
+                case 'product' :
+                    $focusKeyword   = (have_posts($object)) ? Product::getMeta($object->id, 'seo_focus_keyword', true) : '';
+                    $robots         = (have_posts($object)) ? Product::getMeta($object->id, 'seo_robots', true) : [];
+                    $seo_canonical  = (have_posts($object)) ? Product::getMeta($object->id, 'seo_canonical', true) : '';
+                    $seo_schema     = (have_posts($object)) ? Product::getMeta($object->id, 'seo_schema', true) : [];
+                    break;
+                case 'post_category' :
+                    $focusKeyword   = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_focus_keyword', true) : '';
+                    $robots         = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_robots', true) : [];
+                    $seo_canonical  = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_canonical', true) : '';
+                    $seo_schema     = (have_posts($object)) ? PostCategory::getMeta($object->id, 'seo_schema', true) : [];
+                    break;
+                case 'product_category' :
+                    $focusKeyword   = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_focus_keyword', true) : '';
+                    $robots         = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_robots', true) : [];
+                    $seo_canonical  = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_canonical', true) : '';
+                    $seo_schema     = (have_posts($object)) ? ProductCategory::getMeta($object->id, 'seo_schema', true) : [];
+                    break;
+                default:
+                    $focusKeyword   = (have_posts($object)) ? apply_filters('seo_focus_keyword_'.$metabox, '', $object) : '';
+                    $robots         = (have_posts($object)) ? apply_filters('seo_robots'.$metabox, [], $object) : [];
+                    $seo_canonical  = (have_posts($object)) ? apply_filters('seo_canonical_'.$metabox, '', $object) : '';
+                    $seo_schema     = (have_posts($object)) ? apply_filters('seo_schema_'.$metabox, [], $object) : [];
+                    break;
+            }
         }
 
         $seo_index = (empty($robots['index'])) ? 'yes' : $robots['index'];
@@ -76,10 +108,16 @@ Class SKD_Seo_Point {
 
     static public function save($id, $module, $data) {
 
-        if(($module == 'post' && Admin::getPostType() == 'post') || ($module == 'post_categories' && Admin::getCateType() == 'post_categories') || $module == 'page' || $module == 'products' || $module == 'products_categories') {
+        if($module == 'post_categories') {
+            $module = $module.'_'.Admin::getCateType();
+        }
+        if($module == 'post') {
+            $module = $module.'_'.Admin::getPostType();
+        }
+
+        if(!empty(SKD_Seo_Point::module($module))) {
 
             $seo_focus_keyword = trim(InputBuilder::Post('seo_focus_keyword'));
-
 
             $seo_index = trim(InputBuilder::Post('seo_index'));
             $seo_robots = InputBuilder::Post('seo_robots');
@@ -88,71 +126,78 @@ Class SKD_Seo_Point {
             $robots = ['index' => (empty($seo_index)) ? 'yes' : $seo_index];
             $robots['robots'] = $seo_robots;
 
-
             $seo_canonical = trim(InputBuilder::Post('seo_canonical'));
             $seo_canonical = str_replace(Url::base(), '', $seo_canonical);
-
 
             $seo_schema_mode = trim(InputBuilder::Post('seo_schema_mode'));
             $seo_schema_mode = (empty($seo_schema_mode)) ? 'auto' : $seo_schema_mode;
 
             $seo_schema_custom = trim(InputBuilder::Post('seo_schema_custom'));
 
-            if($module == 'post') {
-                Posts::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
-                Posts::updateMeta($id, 'seo_robots', $robots);
-                Posts::updateMeta($id, 'seo_canonical', $seo_canonical);
-                Posts::updateMeta($id, 'seo_schema', [
-                    'mode' => $seo_schema_mode,
-                    'schema' => $seo_schema_custom
-                ]);
+            switch (SKD_Seo_Point::module($module)) {
+                case 'post' :
+                    Posts::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
+                    Posts::updateMeta($id, 'seo_robots', $robots);
+                    Posts::updateMeta($id, 'seo_canonical', $seo_canonical);
+                    Posts::updateMeta($id, 'seo_schema', [
+                        'mode' => $seo_schema_mode,
+                        'schema' => $seo_schema_custom
+                    ]);
+                    break;
+                case 'page' :
+                    Pages::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
+                    Pages::updateMeta($id, 'seo_robots', $robots);
+                    Pages::updateMeta($id, 'seo_canonical', $seo_canonical);
+                    Pages::updateMeta($id, 'seo_schema', [
+                        'mode' => $seo_schema_mode,
+                        'schema' => $seo_schema_custom
+                    ]);
+                    break;
+                case 'product' :
+                    Product::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
+                    Product::updateMeta($id, 'seo_robots', $robots);
+                    Product::updateMeta($id, 'seo_canonical', $seo_canonical);
+                    Product::updateMeta($id, 'seo_schema', [
+                        'mode' => $seo_schema_mode,
+                        'schema' => $seo_schema_custom
+                    ]);
+                    break;
+                case 'post_category' :
+                    PostCategory::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
+                    PostCategory::updateMeta($id, 'seo_robots', $robots);
+                    PostCategory::updateMeta($id, 'seo_canonical', $seo_canonical);
+                    PostCategory::updateMeta($id, 'seo_schema', [
+                        'mode' => $seo_schema_mode,
+                        'schema' => $seo_schema_custom
+                    ]);
+                    break;
+                case 'product_category' :
+                    ProductCategory::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
+                    ProductCategory::updateMeta($id, 'seo_robots', $robots);
+                    ProductCategory::updateMeta($id, 'seo_canonical', $seo_canonical);
+                    ProductCategory::updateMeta($id, 'seo_schema', [
+                        'mode' => $seo_schema_mode,
+                        'schema' => $seo_schema_custom
+                    ]);
+                    break;
+                default:
+                    do_action('seo_point_save', [
+                        'seo_focus_keyword' => $seo_focus_keyword,
+                        'seo_robots' => $robots,
+                        'seo_canonical' => $seo_canonical,
+                        'seo_schema' => [
+                            'mode' => $seo_schema_mode,
+                            'schema' => $seo_schema_custom
+                        ],
+                    ]);
+                    break;
             }
-
-            if($module == 'post_categories') {
-                PostCategory::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
-                PostCategory::updateMeta($id, 'seo_robots', $robots);
-                PostCategory::updateMeta($id, 'seo_canonical', $seo_canonical);
-                PostCategory::updateMeta($id, 'seo_schema', [
-                    'mode' => $seo_schema_mode,
-                    'schema' => $seo_schema_custom
-                ]);
-            }
-
-            if($module == 'page') {
-                Pages::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
-                Pages::updateMeta($id, 'seo_robots', $robots);
-                Pages::updateMeta($id, 'seo_canonical', $seo_canonical);
-                Pages::updateMeta($id, 'seo_schema', [
-                    'mode' => $seo_schema_mode,
-                    'schema' => $seo_schema_custom
-                ]);
-            }
-
-            if($module == 'products') {
-                Product::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
-                Product::updateMeta($id, 'seo_robots', $robots);
-                Product::updateMeta($id, 'seo_canonical', $seo_canonical);
-                Product::updateMeta($id, 'seo_schema', [
-                    'mode' => $seo_schema_mode,
-                    'schema' => $seo_schema_custom
-                ]);
-            }
-            if($module == 'products_categories') {
-                ProductCategory::updateMeta($id, 'seo_focus_keyword', $seo_focus_keyword);
-                ProductCategory::updateMeta($id, 'seo_robots', $robots);
-                ProductCategory::updateMeta($id, 'seo_canonical', $seo_canonical);
-                ProductCategory::updateMeta($id, 'seo_schema', [
-                    'mode' => $seo_schema_mode,
-                    'schema' => $seo_schema_custom
-                ]);
-            }
-
         }
     }
 
     static public function headerSchemaRender($schema, $page) {
 
-        if($page == 'post_detail' || $page == 'page_detail' || $page == 'products_detail') {
+        if(!empty(SKD_Seo_Point::page($page))) {
 
             $object = get_object_current();
 
@@ -160,9 +205,15 @@ Class SKD_Seo_Point {
 
                 $seo_schema = [];
 
-                if($page == 'post_detail') $seo_schema = Posts::getMeta($object->id, 'seo_schema', true);
-                if($page == 'page_detail') $seo_schema = Pages::getMeta($object->id, 'seo_schema', true);
-                if($page == 'products_detail') $seo_schema = Product::getMeta($object->id, 'seo_schema', true);
+                switch (SKD_Seo_Point::page($page)) {
+                    case 'post' : $seo_schema = Posts::getMeta($object->id, 'seo_schema', true); break;
+                    case 'page' : $seo_schema = Pages::getMeta($object->id, 'seo_schema', true); break;
+                    case 'product' : $seo_schema = Product::getMeta($object->id, 'seo_schema', true); break;
+                    case 'post_category' : $seo_schema = PostCategory::getMeta($object->id, 'seo_schema', true); break;
+                    case 'product_category' : $seo_schema = ProductCategory::getMeta($object->id, 'seo_schema', true); break;
+                }
+
+                $seo_schema = apply_filters('seo_schema', $seo_schema, $object);
 
                 $seo_schema_mode = (empty($seo_schema['mode'])) ? 'auto' : $seo_schema['mode'];
 
@@ -177,16 +228,23 @@ Class SKD_Seo_Point {
 
     static public function headerRobotsRender($seo_helper, $page) {
 
-        if($page == 'post_detail' || $page == 'page_detail' || $page == 'products_detail') {
+        if(!empty(SKD_Seo_Point::page($page))) {
 
             $object = get_object_current();
 
             if(have_posts($object)) {
 
                 $robots = [];
-                if($page == 'post_detail') $robots = Posts::getMeta($object->id, 'seo_robots', true);
-                if($page == 'page_detail') $robots = Pages::getMeta($object->id, 'seo_robots', true);
-                if($page == 'products_detail') $robots = Product::getMeta($object->id, 'seo_robots', true);
+
+                switch (SKD_Seo_Point::page($page)) {
+                    case 'post' : $robots = Posts::getMeta($object->id, 'seo_robots', true); break;
+                    case 'page' : $robots = Pages::getMeta($object->id, 'seo_robots', true); break;
+                    case 'product' : $robots = Product::getMeta($object->id, 'seo_robots', true); break;
+                    case 'post_category' : $robots = PostCategory::getMeta($object->id, 'seo_robots', true); break;
+                    case 'product_category' : $robots = ProductCategory::getMeta($object->id, 'seo_robots', true); break;
+                }
+
+                $robots = apply_filters('seo_robots', $robots, $object);
 
                 $robotText = '';
 
@@ -215,9 +273,16 @@ Class SKD_Seo_Point {
                 }
 
                 $seo_canonical = '';
-                if($page == 'post_detail') $seo_canonical = Posts::getMeta($object->id, 'seo_canonical', true);
-                if($page == 'page_detail') $seo_canonical = Pages::getMeta($object->id, 'seo_canonical', true);
-                if($page == 'products_detail') $seo_canonical = Product::getMeta($object->id, 'seo_canonical', true);
+
+                switch (SKD_Seo_Point::page($page)) {
+                    case 'post' : $seo_canonical = Posts::getMeta($object->id, 'seo_canonical', true); break;
+                    case 'page' : $seo_canonical = Pages::getMeta($object->id, 'seo_canonical', true); break;
+                    case 'product' : $seo_canonical = Product::getMeta($object->id, 'seo_canonical', true); break;
+                    case 'post_category' : $seo_canonical = PostCategory::getMeta($object->id, 'seo_canonical', true); break;
+                    case 'product_category' : $seo_canonical = ProductCategory::getMeta($object->id, 'seo_canonical', true); break;
+                }
+
+                $seo_canonical = apply_filters('seo_canonical', $seo_canonical, $object);
 
                 if(!empty($seo_canonical)) {
                     $seo_helper->addCode('canonical', '<link rel="canonical" href="'.$seo_canonical.'" />');
@@ -235,15 +300,20 @@ if(!empty(Option::get('seo_point'))) {
         SKD_Seo_Point::metabox($object, $metabox);
     }
 
-    Metabox::add('SKD_Seo_Point_Post', 'Seo', 'SKD_Seo_Point', ['module' => 'post_post']);
-    if(Template::isPage('post_categories_edit') || Template::isPage('post_categories_add')) {
-        Metabox::add('SKD_Seo_Point_Category', 'Seo', 'SKD_Seo_Point', ['module' => 'post_categories_post_categories']);
+    foreach (SKD_Seo_Point::module() as $module => $item) {
+
+        if($item == 'post_category') {
+            if(Template::isPage('post_categories_edit') || Template::isPage('post_categories_add')) {
+                Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+            }
+        }
+        else if($item == 'product_category') {
+            if(Template::isPage('products_categories_edit') || Template::isPage('products_categories_add')) {
+                Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+            }
+        }
+        else Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
     }
-    if(Template::isPage('products_categories_edit') || Template::isPage('products_categories_add')) {
-        Metabox::add('SKD_Seo_Point_Product_Category', 'Seo', 'SKD_Seo_Point', ['module' => 'products_categories']);
-    }
-    Metabox::add('SKD_Seo_Point_Page', 'Seo', 'SKD_Seo_Point', ['module' => 'page']);
-    Metabox::add('SKD_Seo_Point_Product', 'Seo', 'SKD_Seo_Point', ['module' => 'products']);
 
     add_action('save_object', 'SKD_Seo_Point::save', 10, 3);
     add_filter('schema_render', 'SKD_Seo_Point::headerSchemaRender', 10, 2);
