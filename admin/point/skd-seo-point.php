@@ -305,7 +305,7 @@ if(!empty(Option::get('seo_point'))) {
         SKD_Seo_Point::metabox($object, $metabox);
     }
 
-    function SKD_Seo_Point_create_metabox(){
+    function SKD_Seo_Point_Create_Metabox(){
 
         foreach (SKD_Seo_Point::module() as $module => $item) {
 
@@ -323,7 +323,7 @@ if(!empty(Option::get('seo_point'))) {
         }
 
     }
-    add_action('init', 'SKD_Seo_Point_create_metabox');
+    add_action('init', 'SKD_Seo_Point_Create_Metabox');
 
     add_action('save_object', 'SKD_Seo_Point::save', 10, 3);
     add_filter('schema_render', 'SKD_Seo_Point::headerSchemaRender', 10, 2);
