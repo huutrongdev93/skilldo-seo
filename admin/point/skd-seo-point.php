@@ -1,6 +1,12 @@
 <?php
 Class SKD_Seo_Point {
     static public function module($key = '') {
+
+        /**
+         * $module là 1 mảng chứa $key và $value , trong đó
+         * $key là đối tượng để tạo metabox - Tham khảo giá thị module trong Metabox::add
+         * $value là loại dữ liệu, là page , post category, products ...
+         */
         $module = apply_filters('seo_point_admin_module_enable', [
             'post_post' => 'post',
             'page' => 'page',
@@ -8,6 +14,7 @@ Class SKD_Seo_Point {
             'post_categories_post_categories' => 'post_category',
             'products_categories' => 'product_category',
         ]);
+
         return (!empty($key)) ? Arr::get($module, $key) : $module;
     }
 
@@ -59,7 +66,7 @@ Class SKD_Seo_Point {
                     break;
                 default:
                     $focusKeyword   = (have_posts($object)) ? apply_filters('seo_focus_keyword_'.$metabox, '', $object) : '';
-                    $robots         = (have_posts($object)) ? apply_filters('seo_robots'.$metabox, [], $object) : [];
+                    $robots         = (have_posts($object)) ? apply_filters('seo_robots_'.$metabox, [], $object) : [];
                     $seo_canonical  = (have_posts($object)) ? apply_filters('seo_canonical_'.$metabox, '', $object) : '';
                     $seo_schema     = (have_posts($object)) ? apply_filters('seo_schema_'.$metabox, [], $object) : [];
                     break;
@@ -298,20 +305,25 @@ if(!empty(Option::get('seo_point'))) {
         SKD_Seo_Point::metabox($object, $metabox);
     }
 
-    foreach (SKD_Seo_Point::module() as $module => $item) {
+    function SKD_Seo_Point_create_metabox(){
 
-        if($item == 'post_category') {
-            if(Template::isPage('post_categories_edit') || Template::isPage('post_categories_add')) {
-                Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+        foreach (SKD_Seo_Point::module() as $module => $item) {
+
+            if($item == 'post_category') {
+                if(Template::isPage('post_categories_edit') || Template::isPage('post_categories_add')) {
+                    Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+                }
             }
-        }
-        else if($item == 'product_category') {
-            if(Template::isPage('products_categories_edit') || Template::isPage('products_categories_add')) {
-                Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+            else if($item == 'product_category') {
+                if(Template::isPage('products_categories_edit') || Template::isPage('products_categories_add')) {
+                    Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+                }
             }
+            else Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
         }
-        else Metabox::add('SKD_Seo_Point_'.$module, 'Seo', 'SKD_Seo_Point', ['module' => $module]);
+
     }
+    add_action('init', 'SKD_Seo_Point_create_metabox');
 
     add_action('save_object', 'SKD_Seo_Point::save', 10, 3);
     add_filter('schema_render', 'SKD_Seo_Point::headerSchemaRender', 10, 2);
