@@ -8,7 +8,7 @@
         <?php
         echo '<input type="hidden" name="id" class="form-control" value="'.$object->id.'">';
     }
-    Template::partial('include/form/form', ['form' => $form, 'object' => (isset($object) && have_posts($object)) ? $object : []]);
+    Admin::partial('include/form/form', ['form' => $form, 'object' => (isset($object) && have_posts($object)) ? $object : []]);
     ?>
 </form>
 <script type="text/javascript">
