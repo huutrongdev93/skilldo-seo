@@ -220,8 +220,9 @@ Class Schema {
         if(Template::isPage('post_index')) $this->category(get_object_current('category'));
         if(Template::isPage('post_detail')) $this->post(get_object_current('object'));
         $this->schema = apply_filters('schema_render', $this->schema, Template::getPage());
-        if(have_posts($this->schema)) {
-            echo '<script type="application/ld+json">'.json_encode($this->schema).'</script>';
+        if(!empty($this->schema)) {
+            if(have_posts($this->schema) || is_array($this->schema)) $this->schema = json_encode($this->schema);
+            echo '<script type="application/ld+json">'.$this->schema.'</script>';
         }
         else if(!empty($this->schema)) {
             json_decode($this->schema);
