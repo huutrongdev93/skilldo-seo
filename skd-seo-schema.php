@@ -14,7 +14,7 @@ Class Schema {
     function __construct() {
         $this->title        = Str::clear(Option::get('general_title', ''));
         $this->description  = Str::clear(Option::get('general_description', ''));
-        $this->image        = option::get('logo_header');
+        $this->image        = Option::get('logo_header');
     }
 
     function setTitle($title) {

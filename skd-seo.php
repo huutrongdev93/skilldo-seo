@@ -5,69 +5,72 @@ Plugin class    : skd_seo
 Plugin uri      : https://sikido.vn
 Description     : Ứng dụng Tùy chỉnh SEO sẽ giúp bạn tự SEO hiệu quả cho website của mình
 Author          : SKDSoftware Dev Team
-Version         : 3.1.2
+Version         : 3.2.0
  */
-define('SKD_SEO_NAME', 'skd-seo');
+const SKD_SEO_NAME = 'skd-seo';
+
+const SKD_SEO_VERSION = '3.2.0';
 
 define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
 
-define('SKD_SEO_VERSION', '3.1.2');
-
-class skd_seo {
+class Skd_Seo {
 
     private $name = 'skd_seo';
 
     function __construct() {}
 
     public function active() {
-        $model = get_model()->settable('routes');
-        //add sitemap to router
-        $count = $model->count_where(array('slug' => 'sitemap.xml', 'plugin' => 'skd_seo'));
 
+        $model = model('routes');
+
+        //add sitemap to router
+        $count = Routes::count(Qr::set('slug','sitemap.xml')->where('plugin', 'skd_seo'));
         if($count == 0) {
             $model->add(array(
                 'slug'        => 'sitemap.xml',
-                'controller'  => 'frontend_home/home/page/',
+                'controller'  => 'frontend/home/page/',
                 'plugin'      => 'skd_seo',
                 'object_type' => 'skd_seo',
                 'directional' => 'skd_seo_sitemap',
                 'callback' 	  => 'skd_seo_sitemap',
             ));
         }
-        //add robots to router
-        $count = $model->count_where(array('slug' => 'robots.txt', 'plugin' => 'skd_seo'));
 
+        //add robots to router
+        $count = Routes::count(Qr::set('slug','robots.txt')->where('plugin', 'skd_seo'));
         if($count == 0) {
             $model->add(array(
                 'slug'        => 'robots.txt',
-                'controller'  => 'frontend_home/home/page/',
+                'controller'  => 'frontend/home/page/',
                 'plugin'      => 'skd_seo',
                 'object_type' => 'skd_seo',
                 'directional' => 'skd_seo_robots',
                 'callback' 	  => 'skd_seo_robots',
             ));
         }
-        //add setting
-        Option::update( 'skd_seo_robots', '');
 
-        $model->query("CREATE TABLE IF NOT EXISTS `".CLE_PREFIX."redirect` (
-            `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            `path` varchar(255) COLLATE utf8mb4_unicode_ci NULL,
-            `to` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-            `type`  varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT '301',
-            `redirect` int(11) NOT NULL DEFAULT '0',
-            `order` int(11) NOT NULL DEFAULT '0',
-            `user_created` int(11) DEFAULT NULL,
-            `user_updated` int(11) DEFAULT NULL,
-            `created` datetime DEFAULT NULL,
-            `updated` datetime DEFAULT NULL
-        ) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+        //add setting
+        Option::update('skd_seo_robots', '');
+
+        if(!model()::schema()->hasTable('redirect')) {
+            model()::schema()->create('redirect', function ($table) {
+                $table->increments('id');
+                $table->string('path', 255)->collation('utf8mb4_unicode_ci')->nullable();
+                $table->string('to', 255)->collation('utf8mb4_unicode_ci');
+                $table->string('type', 100)->collation('utf8mb4_unicode_ci')->default('301');
+                $table->integer('redirect')->default(0);
+                $table->integer('order')->default(0);
+                $table->integer('user_created')->default(0);
+                $table->integer('user_updated')->default(0);
+                $table->datetime('created');
+                $table->datetime('updated')->nullable();
+            });
+        }
     }
 
     public function uninstall() {
-        get_model()->settable('routes')->delete_where(array('plugin' => 'skd_seo'));
-        //add setting
-        option::delete( 'skd_seo_robots' );
+        model('routes')->delete(Qr::set('plugin', 'skd_seo'));
+        Option::delete('skd_seo_robots');
     }
 
     static public function bodyTags() {
@@ -174,7 +177,7 @@ else {
     add_action('in_tag_html', 'skd_seo::bodyTags', 1);
 }
 
-function skd_seo_robots($ci , $model) {
+function skd_seo_robots($ci , $model): void {
     header('Content-type: text/plain');
     $robots = trim(option::get('skd_seo_robots'));
     if(!empty($robots)) {

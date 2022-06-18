@@ -1,77 +1,62 @@
 <?php
 Class Seo_Redirect {
-    static public function get($args = []) {
-        $model = get_model()->settable('redirect');
-        if(is_numeric($args)) $args = array( 'where' => array('id' => (int)$args));
-        if(!have_posts($args)) $args = [];
-        $args = array_merge( array('where' => [], 'params' => [] ), $args );
-        $redirect = $model->get_data($args);
-        return apply_filters('get_redirect', $redirect, $args);
-    }
+    static string $table = 'redirect';
 
-    static public function getBy( $field, $value, $params = [] ) {
-        $field = Str::clear( $field );
-        $value = Str::clear( $value );
-        $args = array( 'where' => array( $field => $value));
-        if(have_posts($params)) $arg['params'] = $params;
-        return apply_filters('get_redirect_by', static::get($args), $field, $value );
+    static public function get($args = []) {
+        $args = self::handleParams($args);
+        if(!$args instanceof Qr) return [];
+        return apply_filters('get_'.self::$table, model(self::$table)->get($args));
     }
 
     static public function gets($args = []) {
-        $model 	= get_model()->settable('redirect')->settable_metabox('metabox');
-        if(!have_posts($args)) $args = [];
-        $args = array_merge(['where' => [], 'params' => []], $args );
-        $redirect = $model->gets_data($args);
-        return apply_filters( 'gets_redirect', $redirect, $args );
+        $args = self::handleParams($args);
+        if(!$args instanceof Qr) return [];
+        return apply_filters('gets_'.self::$table, model(self::$table)->gets($args), $args);
     }
 
-    static public function getsBy( $field, $value, $params = [] ) {
-        $field = Str::clear( $field );
-        $value = Str::clear( $value );
-        $args = ['where' => array( $field => $value )];
-        if( have_posts($params) ) $arg['params'] = $params;
-        return apply_filters( 'gets_redirect_by', static::gets($args), $field, $value );
+    static public function count($args = []) {
+        $args = self::handleParams($args);
+        if(!$args instanceof Qr) return 0;
+        return apply_filters('count_'.self::$table,  model(self::$table)->count($args), $args);
     }
 
-    static public function count( $args = [] ) {
-        if( is_numeric($args) ) $args = array( 'where' => array('id' => (int)$args));
-        if( !have_posts($args) ) $args = [];
-        $args = array_merge( array('where' => [], 'params' => [] ), $args );
-        $model = get_model()->settable('redirect')->settable_metabox('redirect_metadata');
-        $redirect = $model->count_data($args);
-        return apply_filters('count_redirect', $redirect, $args );
-    }
+    public static function insert($insertData = array()) {
 
-    public static function insert($redirect = array()) {
+        $columnsTable = [
+            'path'          => ['string'],
+            'to'            => ['string'],
+            'type'          => ['string', '301'],
+            'redirect'      => ['string', 0],
+        ];
 
-        $model = get_model('home')->settable('redirect');
+        $columnsTable = apply_filters('columns_db_'.self::$table, $columnsTable);
+
+        $update = false;
 
         if (!empty( $redirect['id'])) {
-            $id             = (int) $redirect['id'];
-            $update         = true;
-            $old_redirect   = static::get($id);
-            if (!$old_redirect) return new SKD_Error( 'invalid_redirect_id', __('ID redirect không chính xác.'));
-            $redirect['path']   = (isset($redirect['path'])) ? $redirect['path'] : $old_redirect->path;
-            $redirect['to']     = (isset($redirect['to'])) ? $redirect['to'] : $old_redirect->to;
-            $redirect['type']   = (isset($redirect['type'])) ? $redirect['type'] : $old_redirect->type;
-            $redirect['redirect']   = (isset($redirect['redirect'])) ? $redirect['redirect'] : $old_redirect->redirect;
+            $id          = (int) $redirect['id'];
+            $update      = true;
+            $oldObject   = static::get($id);
+            if (!$oldObject) return new SKD_Error( 'invalid_id', __('ID redirect không chính xác.'));
 
-        } else {
-            $update = false;
         }
 
-        $path       =  (!empty($redirect['path'])) ? Str::clear($redirect['path']) : '';
-        $to         =  (!empty($redirect['to'])) ? Str::clear($redirect['to']) : 0;
-        $type       =  (!empty($redirect['type'])) ? Str::clear($redirect['type']) : '301';
-        $redirect   =  (!empty($redirect['redirect'])) ? Str::clear($redirect['redirect']) : 0;
-        $data = compact('path', 'to', 'type', 'redirect');
+        $insertData = createdDataInsert($columnsTable, $insertData, (isset($oldObject)) ? $oldObject : null);
+
+        foreach ($columnsTable as $columnsKey => $columnsValue ) {
+            ${$columnsKey}  = $insertData[$columnsKey];
+        }
+
+        $data = compact(array_keys($columnsTable));
+
+        $model = model(self::$table);
 
         if ($update) {
-            $model->settable('redirect')->update_where( $data, compact('id' ));
+            $model->update( $data, Qr::set('id', $id));
             $redirect_id = (int) $id;
         }
         else {
-            $redirect_id = $model->settable('redirect')->add( $data );
+            $redirect_id = $model->add( $data );
         }
 
         return $redirect_id;
@@ -80,14 +65,14 @@ Class Seo_Redirect {
     static public function delete( $redirectID = 0) {
         $ci =& get_instance();
         $redirectID = (int)Str::clear($redirectID);
-        if( $redirectID == 0 ) return false;
-        $model = get_model('home')->settable('redirect');
-        $redirect  = static::get( $redirectID );
-        if(have_posts($redirect) ) {
-            $ci->data['module']   = 'redirect';
+        if($redirectID == 0) return false;
+        $model = model(self::$table);
+        $redirect  = static::get($redirectID);
+        if(have_posts($redirect)) {
+            $ci->data['module']  = self::$table;
             do_action('delete_redirect', $redirectID );
-            if($model->delete_where(['id'=> $redirectID])) {
-                do_action('delete_redirect_success', $redirectID );
+            if($model->delete(Qr::set('id', $redirectID))) {
+                do_action('delete_redirect_success', $redirectID);
                 return [$redirectID];
             }
         }
@@ -95,15 +80,23 @@ Class Seo_Redirect {
         return false;
     }
 
-    static public function deleteList( $redirectID = []) {
+    static public function deleteList( $redirectID = [])   {
         if(have_posts($redirectID)) {
-            $model      = get_model('home')->settable('redirect');
-            if($model->delete_where_in(['field' => 'id', 'data' => $redirectID])) {
+            if(model(self::$table)->delete(Qr::set()->whereIn('id', $redirectID))) {
                 do_action('delete_redirect_list_trash_success', $redirectID );
                 return $redirectID;
             }
         }
         return false;
+    }
+
+    static public function handleParams($args) {
+        if(is_array($args)) {
+            $args = Qr::convert($args);
+            if(!$args) return $args;
+        }
+        if(is_numeric($args)) $args = Qr::set('id', $args);
+        return $args;
     }
 }
 
@@ -118,6 +111,7 @@ Class Seo_Redirect_Admin {
         $view = InputBuilder::get('view');
 
         if(empty($view)) {
+
             $limit = 20;
 
             $args = [];
@@ -130,14 +124,14 @@ Class Seo_Redirect_Admin {
 
             $args['params'] = array(
                 'limit' => $limit,
-                'start' => $pagination->getoffset(),
+                'start' => $pagination->offset(),
                 'orderby' => 'order, created desc',
             );
 
             $tableConfig = array(
                 'items' => Seo_Redirect::gets($args),
                 'table' => 'redirect',
-                'model' => get_model(),
+                'model' => model('redirect'),
                 'module'=> 'redirect',
             );
 
@@ -156,8 +150,7 @@ Class Seo_Redirect_Admin {
             if(have_posts($object)) {
                 $languages = [];
                 if(Language::hasMulti()) {
-                    $model = get_model('home')->settable('language');
-                    $languages = $model->gets_where(array('object_id' => $object->id, 'object_type' => 'redirect'));
+                    $languages = Language::gets(Qr::set('object_id', $object->id)->where('object_type', 'redirect'));
                     foreach ($languages as $key => $lang) {
                         $object->lang[$lang->language]['name']      = $lang->name;
                         $object->lang[$lang->language]['excerpt']   = $lang->excerpt;
@@ -304,7 +297,7 @@ class Seo_Redirect_Table extends skd_object_list_table {
         $class .= ' text-center';
         echo '<td class="'.$class.'">';
         echo '<a href="#" class="btn-blue btn js_redirect_btn__edit" data-id="'.$item->id.'" data-item="'.htmlentities(json_encode($item)).'">'.Admin::icon('edit').'</a>';
-        echo '<button class="btn-red btn delete" data-id="'.$item->id.'" data-table="'.$table.'">'.Admin::icon('delete').'</button>';
+        echo Admin::btnDelete(['trash' => 'disable', 'id' => $item->id, 'module' => 'Seo_Redirect', 'des' => 'Bạn chắc chắn muốn xóa chuyển hướng này ?']);
         echo "</td>";
     }
     function search_right() {}

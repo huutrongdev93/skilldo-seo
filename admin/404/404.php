@@ -59,6 +59,9 @@ Class Seo_404 {
                 if($redirectConfig['redirect_to'] == 'link' && !empty($redirectConfig['redirect_link'])) {
                     $url = $redirectConfig['redirect_link'];
                 }
+                if(!str_contains('https://', $url) && !str_contains('http://', $url)) {
+                    $url = Url::base().$url;
+                }
                 header('Location: '.$url);
                 exit();
             }
