@@ -59,6 +59,8 @@ Class Schema {
 
     public function product ($item) {
 
+        if  (!have_posts($item)) return false;
+        
         $schema = [
             "@context"      => $this->website,
             "@type"         => "Product",
