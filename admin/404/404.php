@@ -15,7 +15,7 @@ Class Seo_404 {
     }
     static public function save($result, $data) {
 
-        $seo404 = InputBuilder::Post('seo_404');
+        $seo404 = Request::Post('seo_404');
 
         if(!empty($seo404)) {
 

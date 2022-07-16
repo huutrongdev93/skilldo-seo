@@ -108,7 +108,7 @@ Class Seo_Redirect_Admin {
 
     public static function page() {
 
-        $view = InputBuilder::get('view');
+        $view = Request::get('view');
 
         if(empty($view)) {
 
@@ -145,7 +145,7 @@ Class Seo_Redirect_Admin {
         }
         else if($view == 'edit') {
             $form = Seo_Redirect_Admin::field();
-            $id     = (int)InputBuilder::get('id');
+            $id     = (int)Request::get('id');
             $object = Seo_Redirect::get($id);
             if(have_posts($object)) {
                 $languages = [];
@@ -191,11 +191,11 @@ Class Seo_Redirect_Admin {
 
     public static function button() {
         if(Template::isClass('plugins')) {
-            $page = InputBuilder::get('page');
+            $page = Request::get('page');
             if($page == 'redirect') {
                 echo '<div class="pull-left"></div>';
                 echo '<div class="pull-right">';
-                switch (InputBuilder::get('view')) {
+                switch (Request::get('view')) {
                     case 'edit':
                     case 'add':
                         echo '<button name="save" class="btn-icon btn-green" form="js_redirect_form_save">'.Admin::icon('save').' Lưu</button>';
@@ -226,9 +226,9 @@ Class Seo_Redirect_Admin {
 
         $result['message'] = __('Lưu dữ liệu không thành công');
 
-        if(InputBuilder::post()) {
+        if(Request::post()) {
 
-            $id = (int)InputBuilder::post('id');
+            $id = (int)Request::post('id');
 
             $redirect = Seo_Redirect::get($id);
 
@@ -240,8 +240,8 @@ Class Seo_Redirect_Admin {
 
             $redirectUp = [
                 'id'        => $redirect->id,
-                'to'        => InputBuilder::post('redirect_to'),
-                'redirect'  => (int)InputBuilder::post('redirect'),
+                'to'        => Request::post('redirect_to'),
+                'redirect'  => (int)Request::post('redirect'),
             ];
 
             $error = Seo_Redirect::insert($redirectUp);
@@ -281,8 +281,8 @@ class Seo_Redirect_Table extends skd_object_list_table {
         $this->_column_headers['action']   = 'Hành động';
         return apply_filters( "manage_Seo_Redirect_columns", $this->_column_headers );
     }
-    function column_default( $item, $column_name ) {
-        do_action( 'manage_Seo_Redirect_custom_column', $column_name, $item );
+    function column_default($column_name, $item, $global) {
+        do_action( 'manage_Seo_Redirect_custom_column', $column_name, $item, $global );
     }
     function column_path($item, $column_name, $module, $table) {
         echo '<b style="color:red">'.$item->path.'</b>';
@@ -311,9 +311,9 @@ if(!function_exists('admin_ajax_redirect_save')) {
 
         $result['message'] = __('Lưu dữ liệu không thành công');
 
-        if(InputBuilder::post()) {
+        if(Request::post()) {
 
-            $data = InputBuilder::post();
+            $data = Request::post();
 
             if(empty($data['path'])) {
                 $result['message'] = __('Không được để trống Url chuyển hướng');

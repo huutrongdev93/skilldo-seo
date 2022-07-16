@@ -94,7 +94,7 @@ Class Schema {
             $total_number_review    = (isset($rating_star_data['count'])) ? $rating_star_data['count'] : 0;
             if($total_number_review > 0) {
                 $total_star = round($total_star / $total_number_review);
-                $reviews = Rating_star::gets(['where' => array('object_type' => 'product', 'object_id' => $item->id, 'star' => 5), 'params' => array('limit' => 5)]);
+                $reviews = RatingStar::gets(Qr::set('object_type', 'products')->where('object_id', $item->id)->where('star', 5)->limit(5));
                 if (have_posts($reviews)) {
                     $schema['review'] = [];
                     foreach ($reviews as $review) {
@@ -121,18 +121,21 @@ Class Schema {
                 $total_number_review = 20;
             }
         }
-        $schema['review'] = [
-            "@type" => "Review",
-            "reviewRating" => [
-                "@type" => "Rating",
-                "ratingValue" => 5,
-                "bestRating" => 5,
-            ],
-            "author"  => [
-                "@type" => "Person",
-                "name" => "Quản trị viên",
-            ]
-        ];
+        if(!isset($schema['review'])) {
+            $schema['review'] = [
+                "@type" => "Review",
+                "reviewRating" => [
+                    "@type" => "Rating",
+                    "ratingValue" => 5,
+                    "bestRating" => 5,
+                ],
+                "author"  => [
+                    "@type" => "Person",
+                    "name" => "Quản trị viên",
+                ]
+            ];
+        }
+
         $schema['aggregateRating'] = [
             "@type" => "AggregateRating",
             "ratingValue" => $total_star,
