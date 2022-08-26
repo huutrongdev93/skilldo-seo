@@ -5,11 +5,11 @@ Plugin class    : skd_seo
 Plugin uri      : https://sikido.vn
 Description     : Ứng dụng Tùy chỉnh SEO sẽ giúp bạn tự SEO hiệu quả cho website của mình
 Author          : SKDSoftware Dev Team
-Version         : 3.2.0
+Version         : 3.3.0
  */
 const SKD_SEO_NAME = 'skd-seo';
 
-const SKD_SEO_VERSION = '3.2.0';
+const SKD_SEO_VERSION = '3.3.0';
 
 define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
 

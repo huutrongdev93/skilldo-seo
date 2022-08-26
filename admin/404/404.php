@@ -10,26 +10,6 @@ Class Seo_404 {
         if(!empty($key)) return Arr::get($seo404, $key);
         return $seo404;
     }
-    static public function page() {
-        include 'views/setting.php';
-    }
-    static public function save($result, $data) {
-
-        $seo404 = Request::Post('seo_404');
-
-        if(!empty($seo404)) {
-
-            $seo404Update = [
-                'redirect_to'   => $seo404['redirect_to'],
-                'redirect_link' => $seo404['redirect_link'],
-                'redirect_logs' => $seo404['redirect_logs']
-            ];
-
-            Option::update('seo_404' , $seo404Update);
-        }
-
-        return $result;
-    }
     static public function handle() {
         if(Admin::is()) return;
 
@@ -89,7 +69,4 @@ Class Seo_404 {
         return $redirect;
     }
 }
-
-add_action('system_tab_theme_seo_render','Seo_404::page',20);
-add_filter('system_theme_seo_save','Seo_404::save',10,2);
 add_action('template_redirect','Seo_404::handle',1);

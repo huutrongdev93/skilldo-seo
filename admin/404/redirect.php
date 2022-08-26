@@ -1,24 +1,7 @@
 <?php
-Class Seo_Redirect {
+Class Seo_Redirect extends Model {
+
     static string $table = 'redirect';
-
-    static public function get($args = []) {
-        $args = self::handleParams($args);
-        if(!$args instanceof Qr) return [];
-        return apply_filters('get_'.self::$table, model(self::$table)->get($args));
-    }
-
-    static public function gets($args = []) {
-        $args = self::handleParams($args);
-        if(!$args instanceof Qr) return [];
-        return apply_filters('gets_'.self::$table, model(self::$table)->gets($args), $args);
-    }
-
-    static public function count($args = []) {
-        $args = self::handleParams($args);
-        if(!$args instanceof Qr) return 0;
-        return apply_filters('count_'.self::$table,  model(self::$table)->count($args), $args);
-    }
 
     public static function insert($insertData = array()) {
 
@@ -37,7 +20,7 @@ Class Seo_Redirect {
             $id          = (int) $redirect['id'];
             $update      = true;
             $oldObject   = static::get($id);
-            if (!$oldObject) return new SKD_Error( 'invalid_id', __('ID redirect không chính xác.'));
+            if (!$oldObject) return new SKD_Error('invalid_id', __('ID redirect không chính xác.'));
 
         }
 
@@ -62,7 +45,7 @@ Class Seo_Redirect {
         return $redirect_id;
     }
 
-    static public function delete( $redirectID = 0) {
+    static public function delete($redirectID = 0) {
         $ci =& get_instance();
         $redirectID = (int)Str::clear($redirectID);
         if($redirectID == 0) return false;
@@ -80,7 +63,7 @@ Class Seo_Redirect {
         return false;
     }
 
-    static public function deleteList( $redirectID = [])   {
+    static public function deleteList($redirectID = [])   {
         if(have_posts($redirectID)) {
             if(model(self::$table)->delete(Qr::set()->whereIn('id', $redirectID))) {
                 do_action('delete_redirect_list_trash_success', $redirectID );
@@ -89,21 +72,12 @@ Class Seo_Redirect {
         }
         return false;
     }
-
-    static public function handleParams($args) {
-        if(is_array($args)) {
-            $args = Qr::convert($args);
-            if(!$args) return $args;
-        }
-        if(is_numeric($args)) $args = Qr::set('id', $args);
-        return $args;
-    }
 }
 
 Class Seo_Redirect_Admin {
 
     public function __construct() {
-        AdminMenu::addSub('system', 'redirect', '404 Redirect', 'plugins?page=redirect', ['callback' => 'Seo_Redirect_Admin::page','position' => 'system']);
+        AdminMenu::addSub('system', 'redirect', '404 Redirect', 'plugins?page=redirect', ['callback' => 'Seo_Redirect_Admin::page']);
     }
 
     public static function page() {
@@ -267,7 +241,8 @@ Class Seo_Redirect_Admin {
     }
 }
 
-add_action( 'action_bar_before', 'Seo_Redirect_Admin::button', 10 );
+add_action('action_bar_before', 'Seo_Redirect_Admin::button', 10 );
+
 Ajax::admin('Seo_Redirect_Admin::save');
 
 class Seo_Redirect_Table extends skd_object_list_table {
