@@ -92,9 +92,9 @@ class AdminSystemSeo {
         Option::update('general_title' , Request::post('general_title'));
         Option::update('general_description' , Request::post('general_description'));
         Option::update('general_keyword' , Request::post('general_keyword'));
-        Option::update('header_script' , Request::post('header_script'));
-        Option::update('body_script' , Request::post('body_script'));
-        Option::update('footer_script' , Request::post('footer_script'));
+        Option::update('header_script' , $_POST['header_script']);
+        Option::update('body_script' , $_POST['body_script']);
+        Option::update('footer_script' , $_POST['footer_script']);
         Option::update('skd_seo_robots' , Request::post('skd_seo_robots'));
         Option::update('seo_point' , Request::post('seo_point'));
 
