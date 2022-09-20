@@ -13,7 +13,7 @@ function Seo_update_core() {
 add_action('admin_init', 'Seo_update_core');
 Class Seo_Update_Version {
     public function runUpdate($seoVersion) {
-        $listVersion    = ['3.1.0'];
+        $listVersion    = ['3.1.0', '3.3.2'];
         $model          = get_model();
         foreach ($listVersion as $version ) {
             if(version_compare( $version, $seoVersion ) == 1) {
@@ -25,6 +25,9 @@ Class Seo_Update_Version {
     }
     public function update_Version_3_1_0($model) {
         Seo_Update_Database::Version_3_1_0($model);
+    }
+    public function update_Version_3_3_2($model) {
+        Seo_Update_Database::Version_3_3_2($model);
     }
 }
 Class Seo_Update_Database {
@@ -41,5 +44,10 @@ Class Seo_Update_Database {
             `created` datetime DEFAULT NULL,
             `updated` datetime DEFAULT NULL
         ) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    }
+    public static function Version_3_3_2($model) {
+        Option::update('seo_point_support', [
+            'post_post', 'post_categories_post_categories', 'page', 'products', 'products_categories'
+        ]);
     }
 }

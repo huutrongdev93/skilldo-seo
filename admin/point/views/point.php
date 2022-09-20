@@ -1,13 +1,21 @@
 <!-- TAB NAVIGATION -->
 <ul class="nav nav-tabs" role="tablist">
-    <li class="active"><a href="#seo-general" role="tab" data-toggle="tab"><i class="fal fa-cog"></i> Cấu hình chung</a></li>
-    <li><a href="#seo-advanced" role="tab" data-toggle="tab"><i class="fal fa-box-full"></i> Nâng cao</a></li>
-    <li><a href="#seo-schema" role="tab" data-toggle="tab"><i class="fal fa-box-full"></i> Schema</a></li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link active" href="#seo-general" role="tab" data-bs-toggle="tab">
+            <i class="fal fa-cog"></i> Cấu hình chung
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" href="#seo-advanced" role="tab" data-bs-toggle="tab"><i class="fal fa-box-full"></i> Nâng cao</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" href="#seo-schema" role="tab" data-bs-toggle="tab"><i class="fal fa-box-full"></i> Schema</a>
+    </li>
 </ul>
 <hr style="margin-bottom: 0;" />
 <!-- TAB CONTENT -->
 <div class="tab-content" style="padding:10px;">
-    <div class="active tab-pane fade in" id="seo-general">
+    <div class="tab-pane fade show active" id="seo-general">
         <div class="form-group">
             <label for="">Keyword chính</label>
             <div class="input-group">

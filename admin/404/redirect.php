@@ -16,8 +16,8 @@ Class Seo_Redirect extends Model {
 
         $update = false;
 
-        if (!empty( $redirect['id'])) {
-            $id          = (int) $redirect['id'];
+        if (!empty($insertData['id'])) {
+            $id          = (int) $insertData['id'];
             $update      = true;
             $oldObject   = static::get($id);
             if (!$oldObject) return new SKD_Error('invalid_id', __('ID redirect không chính xác.'));
@@ -35,11 +35,11 @@ Class Seo_Redirect extends Model {
         $model = model(self::$table);
 
         if ($update) {
-            $model->update( $data, Qr::set('id', $id));
+            $model->update($data, Qr::set($id));
             $redirect_id = (int) $id;
         }
         else {
-            $redirect_id = $model->add( $data );
+            $redirect_id = $model->add($data);
         }
 
         return $redirect_id;
@@ -76,31 +76,32 @@ Class Seo_Redirect extends Model {
 
 Class Seo_Redirect_Admin {
 
-    public function __construct() {
-        AdminMenu::addSub('system', 'redirect', '404 Redirect', 'plugins?page=redirect', ['callback' => 'Seo_Redirect_Admin::page']);
+    static function register($tabs) {
+        $tabs['redirect'] = [
+            'label' => '404 Redirect',
+            'description' => 'Quản lý log chuyển hướng link 404',
+            'callback' => 'Seo_Redirect_Admin::render',
+            'icon' => '<i class="fa-light fa-diamond-turn-right"></i>',
+            'form' => false,
+        ];
+        return $tabs;
     }
 
-    public static function page() {
-
+    public static function render() {
         $view = Request::get('view');
-
         if(empty($view)) {
 
             $limit = 20;
 
-            $args = [];
+            $args = Qr::set();
 
             $total = Seo_Redirect::count($args);
 
-            $url = Url::admin('plugins?page=redirect&paging={paging}');
+            $url = Url::admin('system/redirect?paging={paging}');
 
             $pagination = pagination($total, $url, $limit);
 
-            $args['params'] = array(
-                'limit' => $limit,
-                'start' => $pagination->offset(),
-                'orderby' => 'order, created desc',
-            );
+            $args->limit($limit)->offset($pagination->offset())->orderByDesc('created');
 
             $tableConfig = array(
                 'items' => Seo_Redirect::gets($args),
@@ -114,87 +115,46 @@ Class Seo_Redirect_Admin {
             include SKD_SEO_PATH.'admin/404/views/page-index.php';
         }
         else if($view == 'add') {
-            $form = Seo_Redirect_Admin::field();
+            Admin::creatForm('redirect');
             include SKD_SEO_PATH.'admin/404/views/page-save.php';
         }
         else if($view == 'edit') {
-            $form = Seo_Redirect_Admin::field();
             $id     = (int)Request::get('id');
             $object = Seo_Redirect::get($id);
             if(have_posts($object)) {
-                $languages = [];
-                if(Language::hasMulti()) {
-                    $languages = Language::gets(Qr::set('object_id', $object->id)->where('object_type', 'redirect'));
-                    foreach ($languages as $key => $lang) {
-                        $object->lang[$lang->language]['name']      = $lang->name;
-                        $object->lang[$lang->language]['excerpt']   = $lang->excerpt;
-                    }
-                }
-                $form_field = $form['field'];
-                foreach($form_field as $key => $field) {
-                    //gán giá trị cho các field bình thường
-                    if( isset($object->{$field['field']}) ) {
-                        $form_field[$key]['value'] = $object->{$field['field']};
-                    }
-                    //gán giá trị cho các field đa ngôn ngữ
-                    else if( isset($field['lang']) ) {
-                        $temp = str_replace($field['lang'].'[', '',$field['field']);
-                        $temp = str_replace(']', '',$temp);
-                        if( have_posts($languages) ) {
-                            foreach ($languages as $k => $value) {
-                                if($field['lang'] == $value->language ) {
-                                    if(isset($value->$temp))  {
-                                        $form_field[$key]['value'] = $value->$temp;
-                                        break;
-                                    }
-                                }
-                                else if(isset($object->$temp)) {
-                                    $form_field[$key]['value'] = $object->$temp;
-                                }
-                            }
-                        } else if(isset($object->$temp)) {
-                            $form_field[$key]['value'] = $object->$temp;
-                        }
-                    }
-                }
-                $form['field'] = $form_field;
+                Admin::creatForm('redirect', $object);
                 include SKD_SEO_PATH.'admin/404/views/page-save.php';
             }
         }
     }
 
     public static function button() {
-        if(Template::isClass('plugins')) {
-            $page = Request::get('page');
-            if($page == 'redirect') {
-                echo '<div class="pull-left"></div>';
-                echo '<div class="pull-right">';
-                switch (Request::get('view')) {
-                    case 'edit':
-                    case 'add':
-                        echo '<button name="save" class="btn-icon btn-green" form="js_redirect_form_save">'.Admin::icon('save').' Lưu</button>';
-                        echo '<a href="'.Url::admin('plugins?page=redirect').'" class="btn-icon btn-blue">'.Admin::icon('back').' Quay lại</a>';
-                        break;
-                    default:
-                        echo '<a href="'.Url::admin('plugins?page=redirect&view=add').'" class="btn-icon btn-green">'.Admin::icon('add').' Thêm Mới</a>';
-                        break;
-                }
-                echo '</div>';
+        $page = Url::segment(3);
+        if($page == 'redirect') {
+            switch (Request::get('view')) {
+                case 'edit':
+                case 'add':
+                    echo '<button name="save" class="btn-icon btn-green" form="js_redirect_form_save">'.Admin::icon('save').' Lưu</button>';
+                    echo '<a href="'.Url::admin('system/redirect').'" class="btn-icon btn-blue">'.Admin::icon('back').' Quay lại</a>';
+                    break;
+                default:
+                    echo '<a href="'.Url::admin('system/redirect?view=add').'" class="btn-icon btn-green">'.Admin::icon('add').' Thêm Mới</a>';
+                    break;
             }
         }
     }
 
-    public static function field() {
-        $form['leftt'] 	= [];
-        $form['leftb'] 	= ['add' => 'Thông tin'];
-        $form['lang'] 	= [];
-        $form['right'] 	= [];
-        $form['field']['path'] = array('group' => 'add', 'field' => 'path', 'label' => 'Url chuyển hướng', 'type' => 'text', 'note' => 'Không bao gồm tên miền');
-        $form['field']['to'] = array('group' => 'add', 'field' => 'to', 'label' => 'Url đích', 'type' => 'url', 'note' => 'Để trống sẽ tự động lấy từ cấu hình seo');
+    public static function form($form) {
+
+        $form->leftBottom
+            ->addGroup('add', 'Thông tin')
+            ->addField('path', 'text', ['label' => 'Url chuyển hướng', 'note' => 'Không bao gồm tên miền'])
+            ->addField('to', 'text', ['label' => 'Url đích', 'note' => 'Để trống sẽ tự động lấy từ cấu hình seo']);
+
         return $form;
     }
 
-    public static function save( $ci, $model ) {
+    public static function save($ci, $model) {
 
         $result['status']  = 'error';
 
@@ -204,19 +164,30 @@ Class Seo_Redirect_Admin {
 
             $id = (int)Request::post('id');
 
-            $redirect = Seo_Redirect::get($id);
+            $redirectUp = [];
 
-            if(!have_posts($redirect)) {
-                $result['message'] = __('Dữ liệu lưu không còn tồn tại');
+            if(!empty($id)) {
+                $redirect = Seo_Redirect::get($id);
+                if(!have_posts($redirect)) {
+                    $result['message'] = __('Dữ liệu lưu không còn tồn tại');
+                    echo json_encode($result);
+                    return true;
+                }
+                $redirectUp['id'] = $redirect->id;
+                $redirectUp['path'] = $redirect->path;
+                $redirectUp['redirect'] = (int)Request::post('redirect');
+                $redirectUp['to'] = (int)Request::post('redirect_to');
+            }
+            else {
+                $redirectUp['path'] = Request::post('path');
+                $redirectUp['to'] = Request::post('to');
+            }
+
+            if(empty($redirectUp['path'])) {
+                $result['message'] = __('Không được để trống Url chuyển hướng');
                 echo json_encode($result);
                 return true;
             }
-
-            $redirectUp = [
-                'id'        => $redirect->id,
-                'to'        => Request::post('redirect_to'),
-                'redirect'  => (int)Request::post('redirect'),
-            ];
 
             $error = Seo_Redirect::insert($redirectUp);
 
@@ -227,8 +198,7 @@ Class Seo_Redirect_Admin {
                 }
             }
             else {
-                $redirect->to = $redirectUp['to'];
-                $redirect->redirect = $redirectUp['redirect'];
+                $redirect = Seo_Redirect::get($error);
                 $result['item']     = $redirect;
                 $result['status']   = 'success';
                 $result['message']  = __('Lưu dữ liệu thành công.');
@@ -240,9 +210,9 @@ Class Seo_Redirect_Admin {
         return true;
     }
 }
-
-add_action('action_bar_before', 'Seo_Redirect_Admin::button', 10 );
-
+add_filter('skd_system_tab', 'Seo_Redirect_Admin::register', 50);
+add_action('action_bar_system_right', 'Seo_Redirect_Admin::button', 10 );
+add_filter('manage_redirect_input', 'Seo_Redirect_Admin::form');
 Ajax::admin('Seo_Redirect_Admin::save');
 
 class Seo_Redirect_Table extends skd_object_list_table {
@@ -277,59 +247,3 @@ class Seo_Redirect_Table extends skd_object_list_table {
     }
     function search_right() {}
 }
-
-if(!function_exists('admin_ajax_redirect_save')) {
-
-    function admin_ajax_redirect_save( $ci, $model ) {
-
-        $result['status']  = 'error';
-
-        $result['message'] = __('Lưu dữ liệu không thành công');
-
-        if(Request::post()) {
-
-            $data = Request::post();
-
-            if(empty($data['path'])) {
-                $result['message'] = __('Không được để trống Url chuyển hướng');
-                echo json_encode($result);
-                return true;
-            }
-
-            $error = Seo_Redirect::insert($data);
-
-            if(is_skd_error($error) ) {
-                $result['status']  = 'error';
-                foreach ($error->errors as $key => $er) {
-                    $result['message'] = $er;
-                }
-            }
-            else {
-                $result['status']  = 'success';
-                $result['message'] = __('Lưu dữ liệu thành công.');
-            }
-        }
-
-        echo json_encode($result);
-
-        return true;
-    }
-
-    Ajax::admin('admin_ajax_redirect_save');
-}
-
-if(!function_exists('admin_action_redirect_delete')) {
-    function admin_action_redirect_delete($res, $table, $id) {
-        if(is_numeric($id)) {
-            $res = Seo_Redirect::delete($id);
-        }
-        else if(have_posts($id)) {
-            $res = Seo_Redirect::deleteList($id);
-        }
-        return $res;
-    }
-
-    add_filter('delete_object_redirect', 'admin_action_redirect_delete', 1, 3 );
-}
-
-new Seo_Redirect_Admin();

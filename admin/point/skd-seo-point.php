@@ -7,13 +7,21 @@ Class SKD_Seo_Point {
          * $key là đối tượng để tạo metabox - Tham khảo giá thị module trong Metabox::add
          * $value là loại dữ liệu, là page , post category, products ...
          */
-        $module = apply_filters('seo_point_admin_module_enable', [
-            'post_post' => 'post',
-            'page' => 'page',
-            'products' => 'product',
-            'post_categories_post_categories' => 'post_category',
-            'products_categories' => 'product_category',
-        ]);
+        $seoPointSupport = Option::get('seo_point_support');
+
+        $module = [];
+
+        if(empty($seoPointSupport)) $seoPointSupport = [];
+
+        foreach ($seoPointSupport as $seoKey) {
+            if($seoKey == 'page') $module[$seoKey] = 'page';
+            else if($seoKey == 'products') $module[$seoKey] = 'product';
+            else if($seoKey == 'products_categories') $module[$seoKey] = 'product_category';
+            else if(str_starts_with($seoKey, 'post_categories_')) $module[$seoKey] = 'post_category';
+            else if(str_starts_with($seoKey, 'post_')) $module[$seoKey] = 'post';
+        }
+
+        $module = apply_filters('seo_point_admin_module_enable', $module);
 
         return (!empty($key)) ? Arr::get($module, $key) : $module;
     }

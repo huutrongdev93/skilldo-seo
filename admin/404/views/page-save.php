@@ -2,13 +2,11 @@
     <?php
     if(isset($object) && have_posts($object)) {
         ?>
-        <script>
-            let object_id = <?php echo $object->id;?>;
-        </script>
+        <script>let object_id = <?php echo $object->id;?>;</script>
         <?php
         echo '<input type="hidden" name="id" class="form-control" value="'.$object->id.'">';
     }
-    Admin::partial('include/form/form', ['form' => $form, 'object' => (isset($object) && have_posts($object)) ? $object : []]);
+    Admin::partial('include/form/form', ['object' => (isset($object) && have_posts($object)) ? $object : []]);
     ?>
 </form>
 <script type="text/javascript">
@@ -28,7 +26,7 @@
                 data[$(this).attr('name')] = value;
             });
 
-            data.action     =  'admin_ajax_redirect_save';
+            data.action     =  'Seo_Redirect_Admin::save';
 
             let $jqxhr = $.post(ajax, data, function () {}, 'json');
 
@@ -36,7 +34,7 @@
                 show_message(data.message, data.status);
                 $('.loading').hide();
                 if(data.status === 'success') {
-                    window.location.href = '<?php echo admin_url('plugins?page=redirect');?>';
+                    window.location.href = '<?php echo Url::admin('system/redirect');?>';
                 }
             });
 
@@ -44,3 +42,8 @@
         });
     })
 </script>
+<style>
+    .pull-left, button[form='system_form'] {
+        display: none;
+    }
+</style>

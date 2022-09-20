@@ -51,8 +51,27 @@ class AdminSystemSeo {
         ]);
     }
     static function renderPoint($tab): void {
+
+        $seoPointSupport = [
+            'page' => 'Trang nội dung',
+            'products' => 'Sản phẩm',
+            'products_categories' => 'Danh mục sản phẩm'
+        ];
+
+        foreach (Taxonomy::getCategory() as $key => $cateType) {
+            $cate = Taxonomy::getCategory($cateType);
+            $seoPointSupport['post_categories_'.$cateType] = $cate['labels']['name'];
+        }
+
+        foreach (Taxonomy::getPost() as $key => $postType) {
+            $cate = Taxonomy::getPost($postType);
+            $seoPointSupport['post_'.$postType] = $cate['labels']['name'];
+        }
+
         $form = new FormBuilder();
+
         $form->add('seo_point',  'select', ['label' => 'Chấm điểm seo', 'options' => [0 => 'không sử dụng', 1 => 'Sử dụng']], Option::get('seo_point'));
+        $form->add('seo_point_support',  'checkbox', ['label' => 'Hỗ trợ', 'options' => $seoPointSupport], Option::get('seo_point_support'));
 
         Admin::partial('function/system/html/default', [
             'title'       => 'Chấm điểm seo',
@@ -97,6 +116,7 @@ class AdminSystemSeo {
         Option::update('footer_script' , $_POST['footer_script']);
         Option::update('skd_seo_robots' , Request::post('skd_seo_robots'));
         Option::update('seo_point' , Request::post('seo_point'));
+        Option::update('seo_point_support' , Request::post('seo_point_support'));
 
         $seo404 = Request::post('seo_404');
 
