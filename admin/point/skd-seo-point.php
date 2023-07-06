@@ -130,22 +130,21 @@ Class SKD_Seo_Point {
 
         if(!empty(SKD_Seo_Point::module($module))) {
 
-            $seo_focus_keyword = trim(Request::Post('seo_focus_keyword'));
-
-            $seo_index = trim(Request::Post('seo_index'));
-            $seo_robots = Request::Post('seo_robots');
+            $seo_focus_keyword = Request::post('seo_focus_keyword');
+            $seo_index = Request::post('seo_index');
+            $seo_robots = Request::post('seo_robots');
             if(!have_posts($seo_robots)) $seo_robots = [];
 
             $robots = ['index' => (empty($seo_index)) ? 'yes' : $seo_index];
             $robots['robots'] = $seo_robots;
 
-            $seo_canonical = trim(Request::Post('seo_canonical'));
-            $seo_canonical = str_replace(Url::base(), '', $seo_canonical);
+            $seo_canonical = Request::post('seo_canonical');
+            if(!empty($seo_canonical)) $seo_canonical = str_replace(Url::base(), '', $seo_canonical);
 
-            $seo_schema_mode = trim(Request::Post('seo_schema_mode'));
+            $seo_schema_mode = Request::post('seo_schema_mode');
             $seo_schema_mode = (empty($seo_schema_mode)) ? 'auto' : $seo_schema_mode;
 
-            $seo_schema_custom = trim(Request::Post('seo_schema_custom'));
+            $seo_schema_custom = Request::post('seo_schema_custom');
 
             switch (SKD_Seo_Point::module($module)) {
                 case 'post' :

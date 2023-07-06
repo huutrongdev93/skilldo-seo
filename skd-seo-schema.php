@@ -59,6 +59,10 @@ Class Schema {
 
     public function product ($item) {
 
+        if(!$item) {
+            return $this->home();
+        }
+
         $schema = [
             "@context"      => $this->website,
             "@type"         => "Product",
@@ -218,20 +222,22 @@ Class Schema {
     }
 
     public function render() {
+
         if(is_home()) $this->home();
+
         if(Template::isPage('products_detail')) $this->product(get_object_current('object'));
+
         if(Template::isPage('post_index')) $this->category(get_object_current('category'));
+
         if(Template::isPage('post_detail')) $this->post(get_object_current('object'));
+
         $this->schema = apply_filters('schema_render', $this->schema, Template::getPage());
+
         if(!empty($this->schema)) {
-            if(have_posts($this->schema) || is_array($this->schema)) $this->schema = json_encode($this->schema);
-            echo '<script type="application/ld+json">'.$this->schema.'</script>';
-        }
-        else if(!empty($this->schema)) {
-            json_decode($this->schema);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                echo '<script type="application/ld+json">'.$this->schema.'</script>';
+            if(have_posts($this->schema) || is_array($this->schema)) {
+                $this->schema = json_encode($this->schema);
             }
+            echo '<script type="application/ld+json">'.$this->schema.'</script>';
         }
     }
 }
