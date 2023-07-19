@@ -16,22 +16,39 @@
 					font-size: 13px;
 					color: #545353;
 				}
+				#content {
+					padding: 20px 30px;
+					background: #fff;
+					max-width: 75%;
+					margin: 0 auto;
+				}
 				table {
 					border: none;
 					border-collapse: collapse;
+					font-size: .9em;
+					width: 100%;
 				}
-				#sitemap tr:nth-child(odd) td {
-					background-color: #eee !important;
+				th {
+					background-color: #4275f4;
+					color: #fff;
+					text-align: left;
+					padding: 15px 10px;
+					font-size: 14px;
+					cursor: pointer;
 				}
-				#sitemap tbody tr:hover td {
-					background-color: #ccc;
+				td {
+					padding: 10px;
+					border-bottom: 1px solid #ddd;
 				}
-				#sitemap tbody tr:hover td, #sitemap tbody tr:hover td a {
-					color: #000;
+				tbody tr:nth-child(even) {
+					background-color: #f7f7f7;
 				}
-				#content {
-					margin: 0 auto;
-					width: 1000px;
+				table td a {
+					display: block;
+				}
+				table td a img {
+					max-height: 30px;
+					margin: 6px 3px;
 				}
 				.expl {
 					margin: 18px 3px;
@@ -76,10 +93,10 @@
 				</p>
 				<table id="sitemap" cellpadding="3">
 					<thead>
-					<tr>
-						<th width="75%">Sitemap</th>
-						<th width="25%">Last Modified</th>
-					</tr>
+						<tr>
+							<th width="75%">Sitemap</th>
+							<th width="25%">Last Modified</th>
+						</tr>
 					</thead>
 					<tbody>
 					<xsl:for-each select="sitemap:sitemapindex/sitemap:sitemap">
