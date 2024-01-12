@@ -3,10 +3,11 @@ class AdminSystemSeo {
     static function seoThemeRegister($tabs) {
         if(!empty($tabs['theme-seo'])) unset($tabs['theme-seo']);
         $tabs['seo'] = [
-            'label' => 'Seo',
+            'label'       => 'Seo',
+            'group'       => 'marketing',
             'description' => 'Quản lý thông tin hỗ trợ seo website',
-            'callback' => 'AdminSystemSeo::render',
-            'icon' => '<i class="fal fa-megaphone"></i>'
+            'callback'    => 'AdminSystemSeo::render',
+            'icon'        => '<i class="fal fa-megaphone"></i>'
         ];
         return $tabs;
     }
@@ -14,37 +15,38 @@ class AdminSystemSeo {
         do_action('admin_system_seo_html');
     }
     static function renderGeneral($tab): void {
-        $form = new FormBuilder();
+        $form = new Form();
         $form
             ->add('seo_favicon', 'image', ['label' => 'Favicon'], Option::get('seo_favicon'))
             ->add('general_title', 'text', ['label' => 'Meta title (shop)'], Option::get('general_title'))
             ->add('general_description', 'textarea', ['label' => 'Meta description (Mô tả trang chủ)'], Option::get('general_description'))
             ->add('general_keyword', 'textarea', ['label' => 'Meta keyword (Từ khóa trang chủ)'], Option::get('general_keyword'));
-        Admin::partial('function/system/html/default', [
+
+        Admin::partial('system/views/default', [
             'title'       => 'Cấu hình chung',
             'description' => 'Quản lý thông tin seo website cơ bản',
             'form'        => $form
         ]);
     }
     static function renderScript($tab): void {
-        $form = new FormBuilder();
+        $form = new Form();
         $form
             ->add('header_script',  'code', ['label' => 'Script Header', 'language'  => 'javascript'], Option::get('header_script'))
             ->add('body_script',    'code', ['label' => 'Script Body',   'language'  => 'javascript'], Option::get('body_script'))
             ->add('footer_script',  'code', ['label' => 'Script Footer', 'language'  => 'javascript'], Option::get('footer_script'));
 
-        Admin::partial('function/system/html/default', [
+        Admin::partial('system/views/default', [
             'title'       => 'Script',
             'description' => 'Chèn code seo, code của bên thứ ba vào các vị trí tương ứng (google analytic code, google master code, chat code, thống kê code..)',
             'form'        => $form
         ]);
     }
     static function renderRobots($tab): void {
-        $form = new FormBuilder();
+        $form = new Form();
         $form
             ->add('skd_seo_robots',  'textarea', ['label' => 'Nội dung file robots'], Option::get('skd_seo_robots'));
 
-        Admin::partial('function/system/html/default', [
+        Admin::partial('system/views/default', [
             'title'       => 'File Robots',
             'description' => 'Điều hướng các robot tìm kiếm cho phép hoặc không cho phép các công cụ tìm kiếm thu thập dữ liệu',
             'form'        => $form
@@ -73,7 +75,7 @@ class AdminSystemSeo {
         $form->add('seo_point',  'select', ['label' => 'Chấm điểm seo', 'options' => [0 => 'không sử dụng', 1 => 'Sử dụng']], Option::get('seo_point'));
         $form->add('seo_point_support',  'checkbox', ['label' => 'Hỗ trợ', 'options' => $seoPointSupport], Option::get('seo_point_support'));
 
-        Admin::partial('function/system/html/default', [
+        Admin::partial('system/views/default', [
             'title'       => 'Chấm điểm seo',
             'description' => 'Quản lý công cụ chấm điểm seo trong bài viết, sản phẩm...',
             'form'        => $form
@@ -99,7 +101,7 @@ class AdminSystemSeo {
                 'single'=> true,
             ], Seo_404::config('redirect_logs'));
 
-        Admin::partial('function/system/html/default', [
+        Admin::partial('system/views/default', [
             'title'       => 'Chuyển hướng 404',
             'description' => 'Quản lý chuyển hướng với các trang 404',
             'form'        => $form

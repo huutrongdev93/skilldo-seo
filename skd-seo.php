@@ -15,12 +15,12 @@ define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
 
 class Skd_Seo {
 
-    private $name = 'skd_seo';
+    private string $name = 'skd_seo';
 
     function __construct() {}
 
-    public function active() {
-
+    public function active(): void
+    {
         $model = model('routes');
 
         //add sitemap to router
@@ -68,19 +68,21 @@ class Skd_Seo {
         }
     }
 
-    public function uninstall() {
+    public function uninstall(): void
+    {
         model('routes')->delete(Qr::set('plugin', 'skd_seo'));
         Option::delete('skd_seo_robots');
     }
 
-    static public function bodyTags() {
+    static public function bodyTags(): void
+    {
         $output = 'itemscope ';
         $output .= 'prefix="og: http://ogp.me/ns#"';
         echo $output;
     }
 
-    static public function header() {
-
+    static public function header(): void
+    {
         $seo_helper = new SeoHelper();
 
         $title          = '';
@@ -161,12 +163,12 @@ class Skd_Seo {
 }
 
 include 'admin/point/skd-seo-point.php';
-
 include 'admin/404/404.php';
 
 if(Admin::is()) {
     require_once 'update.php';
     require_once 'admin/index.php';
+    require_once 'admin/marketing.php';
 }
 else {
     require_once 'skd-seo-helper.php';
