@@ -5,19 +5,19 @@ use SkillDo\Validate\Rule;
 include_once 'model.php';
 include_once 'table.php';
 include_once 'button.php';
-include_once 'helper.php';
 include_once 'ajax.php';
+include_once 'helper.php';
 
-Class Log404_Admin {
+Class Seo_Redirect_Admin {
 
     static function register($tabs) {
-        $tabs['log404'] = [
-            'group' => 'marketing',
-            'label' => 'Log 404',
-            'description' => 'Quản lý log link 404',
-            'callback' => 'Log404_Admin::render',
-            'icon' => '<i class="fa-duotone fa-road-barrier"></i>',
-            'form' => false,
+        $tabs['redirect'] = [
+            'label'         => 'Chuyển Hướng',
+            'group'         => 'marketing',
+            'description'   => 'Quản lý chuyển hướng đường dẫn website',
+            'callback'      => 'Seo_Redirect_Admin::render',
+            'icon'          => '<i class="fa-light fa-diamond-turn-right"></i>',
+            'form'          => false,
         ];
         return $tabs;
     }
@@ -41,48 +41,49 @@ Class Log404_Admin {
 
     static function pageList(\SkillDo\Http\Request $request): void
     {
-        $table = new Log404_Table([
+        $table = new Seo_Redirect_Table([
             'items' => [],
-            'table' => 'log404',
-            'model' => model('log404'),
-            'module'=> 'log404',
+            'table' => 'redirect',
+            'model' => model('redirect'),
+            'module'=> 'seo_redirect',
         ]);
 
         Admin::view('components/page-default/page-index', [
-            'module'    => 'log404',
-            'name'      => trans('Log 404'),
+            'module'    => 'seo_redirect',
+            'name'      => trans('Chuyển hướng'),
             'table'     => $table,
-            'tableId'     => 'admin_table_log404_list',
-            'limitKey'    => 'admin_log404_limit',
-            'ajax'        => 'AjaxAdminLog404::load',
+            'tableId'     => 'admin_table_seo_redirect_list',
+            'limitKey'    => 'admin_seo_redirect_limit',
+            'ajax'        => 'AjaxAdminSeoRedirect::load',
         ]);
 
         $form = form();
 
         $form->setIsValid(true);
 
-        $form->setCallbackValidJs('log404_submit');
+        $form->setCallbackValidJs('seo_redirect_submit');
 
-        $form->radio('redirect', ['Mặc định', 'Url tự điền'], [
+        $form->radio('redirect', ['Bật', 'Tắt'], [
             'label' => 'Chuyển hướng',
             'validations' => Rule::make()->notEmpty()
         ]);
 
         $form->url('redirect_to', [
             'label' => 'Chuyển hướng đến',
+            'validations' => Rule::make()->notEmpty()
         ]);
 
-        Plugin::view('skd-seo', 'views/404/script', [
+        Plugin::view('skd-seo', 'views/redirect/script', [
             'form' => $form
         ]);
     }
 
     static function pageAdd(\SkillDo\Http\Request $request): void
     {
-        Admin::creatForm('log404');
+        Admin::creatForm('seo_redirect');
 
         Admin::view('components/page-default/page-save', [
-            'module'  => 'log404',
+            'module'  => 'seo_redirect',
             'object' => []
         ]);
     }
@@ -91,14 +92,14 @@ Class Log404_Admin {
     {
         $id     = (int)$request->segment(5) ?? 0;
 
-        $object = Log404::get($id);
+        $object = Seo_Redirect::get($id);
 
         if(have_posts($object)) {
 
-            Admin::creatForm('log404', $object);
+            Admin::creatForm('seo_redirect', $object);
 
             Admin::view('components/page-default/page-save', [
-                'module'  => 'log404',
+                'module'  => 'seo_redirect',
                 'object' => $object
             ]);
         }
@@ -112,7 +113,7 @@ Class Log404_Admin {
                 'label' => 'Url chuyển hướng',
                 'note' => 'Không bao gồm tên miền',
                 'validations' => Rule::make()->notEmpty()->unique('redirect', 'path', [
-                    'handlerValue' => function ($value) {
+                    'handleValue' => function ($value) {
                         $value = str_replace(Url::base(), '', $value);
                         return trim($value, '/');
                     }
@@ -120,7 +121,6 @@ Class Log404_Admin {
             ])
             ->addField('to', 'text', [
                 'label'         => 'Url đích',
-                'note'          => 'Để trống sẽ tự động lấy từ cấu hình seo',
                 'validations'   => Rule::make()->notEmpty()->string()->url()
             ]);
 
@@ -133,10 +133,36 @@ Class Log404_Admin {
 
         $insertData['path'] = trim($insertData['path'], '/');
 
-        return Log404::insert($insertData);
+        return Seo_Redirect::insert($insertData);
+    }
+
+    static function afterSave($id, $module): void
+    {
+        $module = Str::lower($module);
+
+        if($module == 'seo_redirect') {
+
+            $object = Seo_Redirect::get($id);
+
+            Seo_Redirect_Helper::build($object);
+        }
+    }
+
+    static function afterDelete($module, $data): void
+    {
+        $module = Str::lower($module);
+
+        if($module == 'seo_redirect') {
+
+            $object = Seo_Redirect::get($data);
+
+            Seo_Redirect_Helper::buildRemove($object->path);
+        }
     }
 }
-add_filter('skd_system_tab', 'Log404_Admin::register', 50);
-add_action('action_bar_system_right', 'Log404_Admin::button');
-add_filter('manage_log404_input', 'Log404_Admin::form');
-add_filter('form_submit_log404', 'Log404_Admin::save', 10, 2);
+add_filter('skd_system_tab', 'Seo_Redirect_Admin::register', 50);
+add_action('action_bar_system_right', 'Seo_Redirect_Admin::button');
+add_filter('manage_seo_redirect_input', 'Seo_Redirect_Admin::form');
+add_filter('form_submit_seo_redirect', 'Seo_Redirect_Admin::save', 10, 2);
+add_action('save_object', 'Seo_Redirect_Admin::afterSave', 10, 2);
+add_action('ajax_delete_after_success', 'Seo_Redirect_Admin::afterDelete', 10, 2);

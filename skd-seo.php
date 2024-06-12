@@ -5,11 +5,11 @@ Plugin class    : skd_seo
 Plugin uri      : https://sikido.vn
 Description     : Ứng dụng Tùy chỉnh SEO sẽ giúp bạn tự SEO hiệu quả cho website của mình
 Author          : SKDSoftware Dev Team
-Version         : 3.3.4
+Version         : 4.0.0
  */
 const SKD_SEO_NAME = 'skd-seo';
 
-const SKD_SEO_VERSION = '3.3.4';
+const SKD_SEO_VERSION = '4.0.0';
 
 define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
 
@@ -21,67 +21,31 @@ class Skd_Seo {
 
     public function active(): void
     {
-        $model = model('routes');
-
-        //add sitemap to router
-        $count = Routes::count(Qr::set('slug','sitemap.xml')->where('plugin', 'skd_seo'));
-        if($count == 0) {
-            $model->add(array(
-                'slug'        => 'sitemap.xml',
-                'controller'  => 'frontend/home/page/',
-                'plugin'      => 'skd_seo',
-                'object_type' => 'skd_seo',
-                'directional' => 'skd_seo_sitemap',
-                'callback' 	  => 'skd_seo_sitemap',
-            ));
-        }
-
-        //add robots to router
-        $count = Routes::count(Qr::set('slug','robots.txt')->where('plugin', 'skd_seo'));
-        if($count == 0) {
-            $model->add(array(
-                'slug'        => 'robots.txt',
-                'controller'  => 'frontend/home/page/',
-                'plugin'      => 'skd_seo',
-                'object_type' => 'skd_seo',
-                'directional' => 'skd_seo_robots',
-                'callback' 	  => 'skd_seo_robots',
-            ));
-        }
-
         //add setting
         Option::update('skd_seo_robots', '');
 
-        if(!model()::schema()->hasTable('redirect')) {
-            model()::schema()->create('redirect', function ($table) {
-                $table->increments('id');
-                $table->string('path', 255)->collation('utf8mb4_unicode_ci')->nullable();
-                $table->string('to', 255)->collation('utf8mb4_unicode_ci');
-                $table->string('type', 100)->collation('utf8mb4_unicode_ci')->default('301');
-                $table->integer('redirect')->default(0);
-                $table->integer('order')->default(0);
-                $table->integer('user_created')->default(0);
-                $table->integer('user_updated')->default(0);
-                $table->datetime('created');
-                $table->datetime('updated')->nullable();
-            });
-        }
+        $database = include_once 'database/database.php';
+
+        $database->up();
     }
 
     public function uninstall(): void
     {
-        model('routes')->delete(Qr::set('plugin', 'skd_seo'));
         Option::delete('skd_seo_robots');
+
+        $database = include_once 'database/database.php';
+
+        $database->down();
     }
 
-    static public function bodyTags(): void
+    static function bodyTags(): void
     {
         $output = 'itemscope ';
         $output .= 'prefix="og: http://ogp.me/ns#"';
         echo $output;
     }
 
-    static public function header(): void
+    static function header(): void
     {
         $seo_helper = new SeoHelper();
 
@@ -162,26 +126,30 @@ class Skd_Seo {
     }
 }
 
-include 'admin/point/skd-seo-point.php';
-include 'admin/404/404.php';
+require_once 'admin/admin.php';
 
 if(Admin::is()) {
+
     require_once 'update.php';
-    require_once 'admin/index.php';
-    require_once 'admin/marketing.php';
 }
 else {
     require_once 'skd-seo-helper.php';
+
     require_once 'skd-seo-schema.php';
+
     require_once 'skd-seo-sitemap.php';
+
     require_once 'skd-seo-breadcrumb.php';
+
     add_action('cle_header', 'skd_seo::header', 1);
+
     add_action('in_tag_html', 'skd_seo::bodyTags', 1);
 }
 
-function skd_seo_robots($ci , $model): void {
-    header('Content-type: text/plain');
+function skd_seo_robots($request): void {
+
     $robots = trim(option::get('skd_seo_robots'));
+
     if(!empty($robots)) {
         echo $robots;
     }
@@ -191,4 +159,6 @@ function skd_seo_robots($ci , $model): void {
         echo 'Disallow: /cgi-bin/'."\n";
         echo 'Sitemap: '.Url::base('sitemap.xml')."\n";
     }
+
+    response()->header('Content-Type', 'text/plain')->send();
 }

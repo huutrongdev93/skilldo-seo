@@ -1,6 +1,8 @@
 <?php
 class SKDSeoSitemap {
+
     private string $xml = '';
+
     static function sitemap(): void
     {
         header('Content-type: application/xml');
@@ -24,15 +26,18 @@ class SKDSeoSitemap {
         }
         $sitemap->render();
     }
+
     public function render(): void
     {
         echo trim($this->xml, "\n");
     }
+
     public function setXml($xml): SKDSeoSitemap
     {
         $this->xml .= $xml."\n";;
         return $this;
     }
+
     public function item($url, $date): SKDSeoSitemap
     {
         $item = '<sitemap>'."\n";
@@ -42,6 +47,7 @@ class SKDSeoSitemap {
         $this->xml .= $item;
         return $this;
     }
+
     public function itemUrl($url, $date, $change, $priority): SKDSeoSitemap
     {
         $item = '<url>'."\n";
@@ -55,7 +61,7 @@ class SKDSeoSitemap {
     }
 }
 
-function skd_seo_sitemap($ci , $model): void
+function skd_seo_sitemap($request): void
 {
     SKDSeoSitemap::sitemap();
 }

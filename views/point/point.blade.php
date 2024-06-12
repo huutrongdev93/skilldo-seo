@@ -1,5 +1,5 @@
 <!-- TAB NAVIGATION -->
-<ul class="nav nav-tabs" role="tablist">
+<ul class="nav nav-tabs nav-tabs-horizontal mb-3" role="tablist">
     <li class="nav-item" role="presentation">
         <a class="nav-link active" href="#seo-general" role="tab" data-bs-toggle="tab">
             <i class="fal fa-cog"></i> Cấu hình chung
@@ -12,14 +12,13 @@
         <a class="nav-link" href="#seo-schema" role="tab" data-bs-toggle="tab"><i class="fal fa-box-full"></i> Schema</a>
     </li>
 </ul>
-<hr style="margin-bottom: 0;" />
 <!-- TAB CONTENT -->
 <div class="tab-content" style="padding:10px;">
     <div class="tab-pane fade show active" id="seo-general">
         <div class="form-group">
             <label for="">Keyword chính</label>
             <div class="input-group">
-                <input name="seo_focus_keyword" type="text" class="form-control" id="seo_focus_keyword" value="<?php echo $focusKeyword;?>">
+                <input name="seo_focus_keyword" type="text" class="form-control" id="seo_focus_keyword" value="{{$focusKeyword}}">
                 <span class="input-group-addon"><span id="seo_point">0</span>/100</span>
             </div>
             <p style="margin: 5px 0; color: #ccc;">Chèn từ khóa bạn muốn xếp hạng.</p>
@@ -29,12 +28,12 @@
                 <div id="seo_panel_base" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="seo_panel_heading_base">
                     <div class="panel-body">
                         <ul>
-                            <?php foreach (SKD_Seo_Point::listCriteria() as $key => $label) { ?>
-                                <li key="<?php echo $key?>" class="seo-check-<?php echo $key?> test-fail">
+                            @foreach (SKD_Seo_Point::listCriteria() as $key => $label)
+                                <li key="{{$key}}" class="seo-check-{{$key}} test-fail">
                                     <span class="icon"><i class="fal fa-times"></i></span>
-                                    <span class="txt"><?php echo $label?></span>
+                                    <span class="txt">{{$label}}</span>
                                 </li>
-                            <?php } ?>
+                            @endforeach
                         </ul>
                     </div>
                 </div>
@@ -42,41 +41,16 @@
         </div>
     </div>
     <div class="tab-pane fade" id="seo-advanced">
+        <h4 class="box-title">Robots Meta</h4>
         <div class="row">
-            <div class="col-md-3"><h5>Robots Meta</h5></div>
-            <div class="col-md-9">
-                <?php
-                $Form = new FormBuilder();
-                $Form->add('seo_index', 'radio', ['label' => 'Index meta', 'single' => true, 'options' => ['no' => 'No Index', 'yes' => 'Index']], $seo_index);
-                $Form->add('seo_robots', 'checkbox', ['label' => 'Meta order', 'options' => [
-                    'noFollow'  => 'No Follow',
-                    'noArchive' => 'No Archive',
-                    'noImage'   => 'No Image Index',
-                    'noSnippet' => 'No Snippet',
-                ]], $seo_robots);
-                $Form->html(false);
-                ?>
-            </div>
+            {!! $formRobots->html() !!}
         </div>
         <div class="row">
-            <div class="col-md-3"><h5>Canonical URL</h5></div>
-            <div class="col-md-9">
-                <?php
-                $Form->add('seo_canonical', 'text', ['label' => 'Canonical URL'], $seo_canonical);
-                $Form->html(false);
-                ?>
-            </div>
+            {!! $formCanonical->html() !!}
         </div>
-
-
     </div>
     <div class="tab-pane fade" id="seo-schema">
-        <?php
-        $Form = new FormBuilder();
-        $Form->add('seo_schema_mode', 'radio', ['label' => 'Sử dụng', 'single' => true, 'options' => ['auto' => 'Hệ thống tự động', 'custom' => 'Thủ công']], $seo_schema_mode);
-        $Form->add('seo_schema_custom', 'code', ['label' => 'Schema thủ công', 'language' => 'javascript'], $seo_schema_custom);
-        $Form->html(false);
-        ?>
+        {!! $formSchema->html() !!}
     </div>
 </div>
 
@@ -124,35 +98,43 @@
 
         let language = '<?php echo Language::default();?>';
 
+		let seo_focus_keyword = $('#seo_focus_keyword');
+
+		let language_title = $('#'+language+'_title');
+
+		let language_name = $('#'+language+'_name');
+
+		let seo_description = $('#seo_description');
+
         let keyword = {
-            'this'  : $('#seo_focus_keyword'),
-            'value' : $('#seo_focus_keyword').val(),
+            'this'  : seo_focus_keyword,
+            'value' : seo_focus_keyword.val(),
         };
 
         let title = {};
-        if(typeof $('#'+language+'_title').html() != 'undefined') {
+        if(typeof language_title.html() != 'undefined') {
             title = {
-                'this'  : $('#'+language+'_title'),
-                'value' : $('#'+language+'_title').val(),
+                'this'  : language_title,
+                'value' : language_title.val(),
             };
         }
         else {
             title = {
-                'this'  : $('#'+language+'_name'),
-                'value' : $('#'+language+'_name').val(),
+                'this'  : language_name,
+                'value' : language_name.val(),
             };
         }
 
         let description = {
-            'this'  : $('#seo_description'),
-            'value' : $('#seo_description').val(),
+            'this'  : seo_description,
+            'value' : seo_description.val(),
         };
 
         let content = $('#'+language+'_content').val();
 
         let slug = $('#slug').val();
 
-        if(slug.length === 0) {
+        if(typeof slug === 'undefined' || slug.length === 0) {
             slug = ChangeToSlug(title.value);
         }
 
@@ -160,7 +142,9 @@
 
         keyword.value = keyword.value.toLowerCase();
 
-        description.value = description.value.toLowerCase();
+	    if(typeof description.value == 'string') {
+		    description.value = description.value.toLowerCase();
+        }
 
         let seoPanel = $('#seo-general');
 
@@ -213,14 +197,14 @@
 
             if(keyword.value.length !== 0) {
                 //keywordInMetaDescription
-                if (description.value.search(keyword.value) !== -1) {
+                if (typeof description.value === 'string' && description.value.search(keyword.value) !== -1) {
                     point++;
                     seoRankMathChangeStatus('keywordInMetaDescription', 'success');
                 }
             }
 
             //lengthMetaDescription
-            let descriptionLength = description.value.length;
+            let descriptionLength = (typeof description.value === 'string') ? description.value.length : 0;
 
             if(descriptionLength >= 160 && descriptionLength <= 300) {
                 point++;
@@ -540,7 +524,7 @@
         title.this.change(function () {
             title.value = $(this).val();
             title.value = title.value.toLowerCase();
-            if(slug.length === 0) {
+            if(typeof slug != 'string' && slug.length === 0) {
                 slug = ChangeToSlug(title.value);
             }
             seoRankMathGroup();
@@ -548,7 +532,9 @@
 
         description.this.change(function () {
             description.value = $(this).val();
-            description.value = description.value.toLowerCase();
+			if(typeof description.value == 'string') {
+				description.value = description.value.toLowerCase();
+            }
             seoRankMathGroup();
         });
 
