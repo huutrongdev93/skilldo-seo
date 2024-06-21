@@ -37,7 +37,7 @@
 
 		request.post(ajax, data).then(function(response) {
 
-			SkilldoHelper.message.response(response);
+			SkilldoMessage.response(response);
 
 			element.find('.loading').hide();
 

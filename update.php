@@ -17,7 +17,7 @@ Class Seo_Update_Version {
 
     public function runUpdate($seoVersion): void
     {
-        $listVersion  = ['3.1.0', '3.3.2', '3.4.0'];
+        $listVersion  = ['3.1.0', '3.3.2', '4.0.0'];
         foreach ($listVersion as $version ) {
             if(version_compare( $version, $seoVersion ) == 1) {
                 $function = 'update_Version_'.str_replace('.','_',$version);
@@ -39,9 +39,9 @@ Class Seo_Update_Version {
         $database->up();
     }
 
-    public function update_Version_3_4_0(): void
+    public function update_Version_4_0_0(): void
     {
-        $database = include "database/db_v3.4.0.php";
+        $database = include "database/db_v4.0.0.php";
         $database->up();
     }
 }
