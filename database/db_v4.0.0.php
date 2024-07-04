@@ -19,8 +19,14 @@ return new class () extends Migration {
                 $table->integer('redirect')->default(0);
                 $table->string('ip')->nullable();
                 $table->integer('hit')->default(0);
-                $table->datetime('created');
+                $table->datetime('created')->default('CURRENT_TIMESTAMP');
                 $table->datetime('updated')->nullable();
+            });
+        }
+
+        if(schema()->hasTable('redirect')) {
+            schema()->table('redirect', function (Blueprint $table) {
+                $table->dateTime('created')->default('CURRENT_TIMESTAMP')->change();
             });
         }
 

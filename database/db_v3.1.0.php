@@ -16,7 +16,7 @@ return new class () extends Migration {
                 $table->integer('order')->default(0);
                 $table->integer('user_created')->default(0);
                 $table->integer('user_updated')->default(0);
-                $table->datetime('created');
+                $table->datetime('created')->default('CURRENT_TIMESTAMP');
                 $table->datetime('updated')->nullable();
             });
         }

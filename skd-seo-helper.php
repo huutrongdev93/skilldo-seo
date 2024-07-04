@@ -31,7 +31,7 @@ Class SeoHelper {
             $this->keyword      = Str::clear(Option::get('product_keyword'));
         }
 
-        $this->image        = option::get('logo_header');
+        $this->image        = Option::get('logo_header');
 
         $this->auth         = Option::get('general_title');
 
@@ -40,7 +40,12 @@ Class SeoHelper {
 
     function setTitle($title): static
     {
-        if(!empty($title)) $this->title = Str::clear($title);
+        if(!empty($title)) {
+            if(Str::isHtmlspecialchars($title)) {
+                $title = htmlspecialchars_decode($title);
+            }
+            $this->title = Str::clear($title);
+        }
         $this->title = apply_filters('seo_title', $this->title);
         $this->schema->setTitle($this->title);
         return $this;
@@ -48,7 +53,12 @@ Class SeoHelper {
 
     function setDescription($description): static
     {
-        if(!empty($description)) $this->description = Str::clear($description);
+        if(!empty($description)) {
+            if(Str::isHtmlspecialchars($description)) {
+                $description = htmlspecialchars_decode($description);
+            }
+            $this->description = Str::clear($description);
+        }
         $this->description = apply_filters('seo_description', $this->description);
         $this->schema->setDescription($this->description);
         $this->addMeta('description', $this->description);
@@ -57,7 +67,12 @@ Class SeoHelper {
 
     function setKeyword($keyword): static
     {
-        if(!empty($keyword)) $this->keyword = Str::clear($keyword);
+        if(!empty($keyword)) {
+            if(Str::isHtmlspecialchars($keyword)) {
+                $keyword = htmlspecialchars_decode($keyword);
+            }
+            $this->keyword = Str::clear($keyword);
+        }
         $this->keyword = apply_filters('seo_keyword', $this->keyword);
         $this->addMeta('keywords', $this->keyword);
         return $this;
