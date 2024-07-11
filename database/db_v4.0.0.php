@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Capsule\Manager as DB;
 
 return new class () extends Migration {
 
@@ -19,7 +20,7 @@ return new class () extends Migration {
                 $table->integer('redirect')->default(0);
                 $table->string('ip')->nullable();
                 $table->integer('hit')->default(0);
-                $table->datetime('created')->default('CURRENT_TIMESTAMP');
+                $table->datetime('created')->default(DB::raw('CURRENT_TIMESTAMP'));
                 $table->datetime('updated')->nullable();
             });
         }
