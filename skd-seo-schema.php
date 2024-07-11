@@ -230,16 +230,15 @@ Class Schema {
 
     public function render(): void
     {
-
         if(is_home()) $this->home();
 
-        if(Template::isPage('products_detail')) $this->product(get_object_current('object'));
+        if(Theme::isPage('products_detail')) $this->product(get_object_current('object'));
 
-        if(Template::isPage('post_index')) $this->category(get_object_current('category'));
+        if(Theme::isPage('post_index')) $this->category(get_object_current('category'));
 
-        if(Template::isPage('post_detail')) $this->post(get_object_current('object'));
+        if(Theme::isPage('post_detail')) $this->post(get_object_current('object'));
 
-        $this->schema = apply_filters('schema_render', $this->schema, Template::getPage());
+        $this->schema = apply_filters('schema_render', $this->schema, Theme::getPage());
 
         if(!empty($this->schema)) {
             if(have_posts($this->schema)) {

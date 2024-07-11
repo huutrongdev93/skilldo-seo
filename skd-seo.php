@@ -112,13 +112,13 @@ class Skd_Seo {
             ->addMeta('author', $seo_helper->auth);
 
         //itemprop
-        if(!empty(option::get('seo_google_masterkey'))) {
+        if(!empty(Option::get('seo_google_masterkey'))) {
             $seo_helper->addMeta('google-site-verification', option::get('seo_google_masterkey'));
         }
 
         //Add canonical
         $seo_helper
-            ->addCode('canonical', '<link rel="canonical" href="'.Url::current().'" />');
+            ->addCode('canonical', '<link rel="canonical" href="'.request()->url().'" />');
 
         $seo_helper = apply_filters('seo_render', $seo_helper, Template::getPage());
 
