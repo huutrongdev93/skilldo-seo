@@ -1,12 +1,4 @@
 <?php
-/**
-Plugin name     : Tùy Chỉnh Seo
-Plugin class    : skd_seo
-Plugin uri      : https://sikido.vn
-Description     : Ứng dụng Tùy chỉnh SEO sẽ giúp bạn tự SEO hiệu quả cho website của mình
-Author          : SKDSoftware Dev Team
-Version         : 4.0.0
- */
 const SKD_SEO_NAME = 'skd-seo';
 
 const SKD_SEO_VERSION = '4.0.0';
