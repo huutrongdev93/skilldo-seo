@@ -1,7 +1,7 @@
 <?php
-Route::get('sitemap.xml', 'home@page/skd_seo_sitemap', ['namespace' => 'frontend']);
+Route::get('sitemap.xml', 'home@page/skd_seo_sitemap', ['namespace' => 'frontend'])->name('sitemap');
 
-Route::get('robots.txt', 'home@page/skd_seo_robots', ['namespace' => 'frontend']);
+Route::get('robots.txt', 'home@page/skd_seo_robots', ['namespace' => 'frontend'])->name('robots');
 
 if(file_exists('views/plugins/skd-seo/assets/redirect.json')) {
     $redirect = json_decode(file_get_contents('views/plugins/skd-seo/assets/redirect.json'));
