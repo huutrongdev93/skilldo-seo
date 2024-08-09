@@ -46,10 +46,9 @@ class Seo_Redirect_Table extends \SkillDo\Table\SKDObjectTable {
             'icon'    => Admin::icon('edit')
         ]);
         $listButton[] = Admin::btnDelete([
-            'trash' => 'disable',
             'id' => $item->id,
-            'module' => 'Seo_Redirect',
-            'des' => trans('message.page.confirmDelete')
+            'model' => 'Seo_Redirect',
+            'description' => trans('message.page.confirmDelete')
         ]);
         /**
          * @since 7.0.0

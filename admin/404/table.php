@@ -49,10 +49,10 @@ class Log404_Table extends \SkillDo\Table\SKDObjectTable {
             'icon'    => Admin::icon('edit')
         ]);
         $listButton[] = Admin::btnDelete([
-            'trash' => 'disable',
-            'id' => $item->id,
-            'module' => 'log404',
-            'des' => trans('message.page.confirmDelete')
+            'trash'         => 'disable',
+            'id'            => $item->id,
+            'model'         => 'log404',
+            'description'   => trans('message.page.confirmDelete')
         ]);
         /**
          * @since 7.0.0
