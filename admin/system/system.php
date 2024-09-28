@@ -173,4 +173,4 @@ add_action('admin_system_seo_html','AdminSystemSeo::renderScript', 20);
 add_action('admin_system_seo_html','AdminSystemSeo::renderRobots', 30);
 add_action('admin_system_seo_html','AdminSystemSeo::renderPoint', 40);
 add_action('admin_system_seo_html','AdminSystemSeo::renderRedirect', 50);
-add_action('admin_system_seo_save','AdminSystemSeo::save',10,2);
+add_action('admin_system_seo_save','AdminSystemSeo::save');

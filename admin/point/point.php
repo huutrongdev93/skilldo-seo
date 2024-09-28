@@ -22,7 +22,7 @@ Class SKD_Seo_Point {
         ];
 
         if(class_exists('sicommerce')) {
-            $module['product'] = [
+            $module['products'] = [
                 'class' => 'SKD_Seo_Product_Point',
             ];
             $module['product_category'] = [
