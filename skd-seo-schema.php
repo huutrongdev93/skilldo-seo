@@ -1,15 +1,15 @@
 <?php
 Class Schema {
 
-    public $website = 'http://schema.org/';
+    public string $website = 'http://schema.org/';
 
-    public $schema  = [];
+    public mixed $schema  = [];
 
-    public $title;
+    public mixed $title;
 
-    public $description;
+    public mixed $description;
 
-    public $image;
+    public mixed $image;
 
     function __construct() {
         $this->title        = Str::clear(Option::get('general_title', ''));
@@ -17,19 +17,22 @@ Class Schema {
         $this->image        = Option::get('logo_header');
     }
 
-    function setTitle($title) {
+    function setTitle($title): static
+    {
         if(!empty($title)) $this->title = Str::clear($title);
         $this->title = apply_filters('schema_title', $this->title);
         return $this;
     }
 
-    function setDescription($description) {
+    function setDescription($description): static
+    {
         if(!empty($description)) $this->description = Str::clear($description);
         $this->description = apply_filters('schema_description', $this->description);
         return $this;
     }
 
-    function setImage($image) {
+    function setImage($image): static
+    {
         if(!empty($image)) $this->image = Str::clear($image);
         $this->image = apply_filters('schema_image', $this->image);
         if(!empty($this->image)) $this->image = Template::imgLink($this->image);
@@ -37,7 +40,8 @@ Class Schema {
         return $this;
     }
 
-    public function home() {
+    public function home(): static
+    {
         $this->schema = [
             "@context"      => $this->website,
             "@type"         => "WebSite",
@@ -57,7 +61,8 @@ Class Schema {
         return $this;
     }
 
-    public function product ($item) {
+    public function product ($item): static
+    {
 
         if(!$item) {
             return $this->home();
@@ -151,7 +156,8 @@ Class Schema {
         return $this;
     }
 
-    public function post ($item) {
+    public function post ($item): static
+    {
         if (have_posts($item)) {
             $schema = [
                 "@context" => $this->website,
@@ -186,7 +192,8 @@ Class Schema {
         return $this;
     }
 
-    public function category ($item) {
+    public function category ($item): static
+    {
         if (have_posts($item)) {
             $schema = [
                 "@context" => $this->website,
@@ -221,20 +228,20 @@ Class Schema {
         return $this;
     }
 
-    public function render() {
-
+    public function render(): void
+    {
         if(is_home()) $this->home();
 
-        if(Template::isPage('products_detail')) $this->product(get_object_current('object'));
+        if(Theme::isPage('products_detail')) $this->product(get_object_current('object'));
 
-        if(Template::isPage('post_index')) $this->category(get_object_current('category'));
+        if(Theme::isPage('post_index')) $this->category(get_object_current('category'));
 
-        if(Template::isPage('post_detail')) $this->post(get_object_current('object'));
+        if(Theme::isPage('post_detail')) $this->post(get_object_current('object'));
 
-        $this->schema = apply_filters('schema_render', $this->schema, Template::getPage());
+        $this->schema = apply_filters('schema_render', $this->schema, Theme::getPage());
 
         if(!empty($this->schema)) {
-            if(have_posts($this->schema) || is_array($this->schema)) {
+            if(have_posts($this->schema)) {
                 $this->schema = json_encode($this->schema);
             }
             echo '<script type="application/ld+json">'.$this->schema.'</script>';

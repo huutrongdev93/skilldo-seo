@@ -1,56 +1,85 @@
 <?php
 Class SeoHelper {
 
-    public $title;
+    public mixed $title;
 
-    public $description;
+    public mixed $description;
 
-    public $keyword;
+    public mixed $keyword;
 
-    public $image;
+    public mixed $image;
 
-    public $auth;
+    public mixed $auth;
 
-    public $favicon;
+    public string $favicon;
 
-    public $meta = [];
+    public array $meta = [];
 
-    public $code = [];
+    public array $code = [];
 
-    public $schema;
+    public Schema $schema;
 
     function __construct() {
+
         $this->title        = Str::clear(Option::get('general_title', ''));
         $this->description  = Str::clear(Option::get('general_description', ''));
         $this->keyword      = Str::clear(Option::get('general_keyword', ''));
-        $this->image        = option::get('logo_header');
+
+        if(Theme::isPage('products_index') && is_null(Cms::getData('category'))) {
+            $this->title        = Str::clear(Option::get('product_title'));
+            $this->description  = Str::clear(Option::get('product_description'));
+            $this->keyword      = Str::clear(Option::get('product_keyword'));
+        }
+
+        $this->image        = Option::get('logo_header');
+
         $this->auth         = Option::get('general_title');
+
         $this->schema       = new Schema();
     }
 
-    function setTitle($title) {
-        if(!empty($title)) $this->title = Str::clear($title);
+    function setTitle($title): static
+    {
+        if(!empty($title)) {
+            if(Str::isHtmlspecialchars($title)) {
+                $title = htmlspecialchars_decode($title);
+            }
+            $this->title = Str::clear($title);
+        }
         $this->title = apply_filters('seo_title', $this->title);
         $this->schema->setTitle($this->title);
         return $this;
     }
 
-    function setDescription($description) {
-        if(!empty($description)) $this->description = Str::clear($description);
+    function setDescription($description): static
+    {
+        if(!empty($description)) {
+            if(Str::isHtmlspecialchars($description)) {
+                $description = htmlspecialchars_decode($description);
+            }
+            $this->description = Str::clear($description);
+        }
         $this->description = apply_filters('seo_description', $this->description);
         $this->schema->setDescription($this->description);
         $this->addMeta('description', $this->description);
         return $this;
     }
 
-    function setKeyword($keyword) {
-        if(!empty($keyword)) $this->keyword = Str::clear($keyword);
+    function setKeyword($keyword): static
+    {
+        if(!empty($keyword)) {
+            if(Str::isHtmlspecialchars($keyword)) {
+                $keyword = htmlspecialchars_decode($keyword);
+            }
+            $this->keyword = Str::clear($keyword);
+        }
         $this->keyword = apply_filters('seo_keyword', $this->keyword);
         $this->addMeta('keywords', $this->keyword);
         return $this;
     }
 
-    function setImage($image) {
+    function setImage($image): static
+    {
         if(!empty($image)) $this->image = Str::clear($image);
         $this->image = apply_filters('seo_image', $this->image);
         $this->schema->setImage($this->image);
@@ -60,18 +89,21 @@ Class SeoHelper {
         return $this;
     }
 
-    function setAuth($auth) {
+    function setAuth($auth): static
+    {
         if(!empty($auth)) $this->auth = $auth;
         $this->auth = apply_filters('seo_auth', $this->auth);
         return $this;
     }
 
-    function setFavicon($favicon) {
+    function setFavicon($favicon): static
+    {
         if(!empty($favicon)) $this->favicon = $favicon;
         return $this;
     }
 
-    function addMeta($name, $content, $args = []) {
+    function addMeta($name, $content, $args = []): static
+    {
         if(!empty($content)) {
             $attr = '';
             if(have_posts($args)) {
@@ -89,26 +121,30 @@ Class SeoHelper {
         return $this;
     }
 
-    function addProperty($name, $content, $args = []) {
+    function addProperty($name, $content, $args = []): static
+    {
         $this->addMeta('', $content, [
             'property' => $name
         ]);
         return $this;
     }
 
-    function addItemprop($name, $content, $args = []) {
+    function addItemprop($name, $content, $args = []): static
+    {
         $this->addMeta('', $content, [
             'itemprop' => $name
         ]);
         return $this;
     }
 
-    function addCode($name, $content) {
+    function addCode($name, $content): static
+    {
         $this->code[$name] = $content;
         return $this;
     }
 
-    function render() {
+    function render(): void
+    {
         echo '<title>'.$this->title.'</title>';
         foreach ($this->meta as $meta) {
             echo '<meta '.((!empty($meta['name'])) ? 'name="'.$meta['name'].'" ' :' ').$meta['attr'].' content="'.$meta['content'].'"/>';
