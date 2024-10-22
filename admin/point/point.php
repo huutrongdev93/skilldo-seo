@@ -123,10 +123,8 @@ Class SKD_Seo_Point {
         return $listCriteria;
     }
 
-    static function save($id, $module, $data): void
+    static function save($id, $module, \SkillDo\Http\Request $request): void
     {
-        $request = request();
-
         $class = SKD_Seo_Point::module($module.'.class');
 
         if(!is_null($class) && class_exists($class)) {
@@ -157,13 +155,13 @@ Class SKD_Seo_Point {
 
             $seo_schema_custom = $request->input('seo_schema_custom');
 
-            $class->getFocusKeyword($id, $seo_focus_keyword);
+            $class->setFocusKeyword($id, $seo_focus_keyword);
 
-            $class->getRobots($id, $robots);
+            $class->setRobots($id, $robots);
 
-            $class->getCanonical($id, $seo_canonical);
+            $class->setCanonical($id, $seo_canonical);
 
-            $class->getSchema($id, [
+            $class->setSchema($id, [
                 'mode' => $seo_schema_mode,
                 'schema' => $seo_schema_custom
             ]);
