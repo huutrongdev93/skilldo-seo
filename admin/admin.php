@@ -1,6 +1,6 @@
 <?php
-include 'marketing.php';
-include 'system/system.php';
-include 'redirect/redirect.php';
-include '404/404.php';
-include 'point/point.php';
+include __DIR__.'/marketing.php';
+include __DIR__.'/system/system.php';
+include __DIR__.'/redirect/redirect.php';
+include __DIR__.'/404/404.php';
+include __DIR__.'/point/point.php';

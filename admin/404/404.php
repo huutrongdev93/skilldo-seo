@@ -1,5 +1,4 @@
 <?php
-
 use SkillDo\Validate\Rule;
 
 include_once 'model.php';
