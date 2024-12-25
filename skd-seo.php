@@ -1,7 +1,7 @@
 <?php
 const SKD_SEO_NAME = 'skd-seo';
 
-const SKD_SEO_VERSION = '4.0.4';
+const SKD_SEO_VERSION = '4.0.5';
 
 define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
 
@@ -66,6 +66,21 @@ class Skd_Seo {
                 $description= (!empty($object->seo_description)) ? $object->seo_description : Str::clear($object->excerpt);
                 $keyword 	= (!empty($object->seo_keywords)) ? $object->seo_keywords : '';
                 $image 		= (!empty($object->image)) ? $object->image : '';
+            }
+        }
+
+        $title = apply_filters('seo_title', $title);
+
+        $description = apply_filters('seo_description', $description);
+
+        $keyword = apply_filters('seo_keyword', $keyword);
+
+        $image = apply_filters('seo_image', $image);
+
+        if(empty($image)) {
+            $image = Option::get('site_social_image');
+            if(!empty($image)) {
+                $image = Url::base().Image::large($image)->link();
             }
         }
 

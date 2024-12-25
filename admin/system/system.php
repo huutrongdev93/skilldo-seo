@@ -18,6 +18,7 @@ class AdminSystemSeo {
         $form = form();
         $form
             ->image('seo_favicon', ['label' => 'Favicon'], Option::get('seo_favicon'))
+            ->image('site_social_image', ['label' => 'Ảnh hiển thị khi share'], Option::get('site_social_image'))
             ->text('general_title', ['label' => 'Meta title (shop)'], Option::get('general_title'))
             ->textarea('general_description', ['label' => 'Meta description (Mô tả trang chủ)'], Option::get('general_description'))
             ->textarea('general_keyword', ['label' => 'Meta keyword (Từ khóa trang chủ)'], Option::get('general_keyword'));
@@ -127,6 +128,7 @@ class AdminSystemSeo {
     static function save(\SkillDo\Http\Request $request): void
     {
         Option::update('seo_favicon' , FileHandler::handlingUrl($request->input('seo_favicon')));
+        Option::update('site_social_image' , FileHandler::handlingUrl($request->input('site_social_image')));
         Option::update('general_title' , $request->input('general_title'));
         Option::update('general_description' , $request->input('general_description'));
         Option::update('general_keyword' , $request->input('general_keyword'));
