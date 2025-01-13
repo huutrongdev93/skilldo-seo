@@ -1,7 +1,7 @@
 <?php
 const SKD_SEO_NAME = 'skd-seo';
 
-const SKD_SEO_VERSION = '4.0.5';
+const SKD_SEO_VERSION = '4.0.6';
 
 define('SKD_SEO_PATH', Path::plugin(SKD_SEO_NAME).'/');
 

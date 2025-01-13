@@ -139,7 +139,10 @@ class AdminSystemSeo {
         Option::update('body_script' , $_POST['body_script']);
         Option::update('footer_script' , $_POST['footer_script']);
         Option::update('skd_seo_robots' , $request->input('skd_seo_robots'));
-        Option::update('seo_point' , $request->input('seo_point'));
+        if(Admin::isRoot())
+        {
+            Option::update('seo_point', $request->input('seo_point'));
+        }
         Option::update('seo_point_support' , $request->input('seo_point_support'));
 
         $seo404 = $request->input('seo_404');
@@ -173,6 +176,9 @@ add_action('admin_system_seo_html','AdminSystemSeo::renderGeneral', 10);
 add_action('admin_system_seo_html','AdminSystemSeo::renderProduct', 15);
 add_action('admin_system_seo_html','AdminSystemSeo::renderScript', 20);
 add_action('admin_system_seo_html','AdminSystemSeo::renderRobots', 30);
-add_action('admin_system_seo_html','AdminSystemSeo::renderPoint', 40);
+if(Admin::isRoot())
+{
+    add_action('admin_system_seo_html','AdminSystemSeo::renderPoint', 40);
+}
 add_action('admin_system_seo_html','AdminSystemSeo::renderRedirect', 50);
 add_action('admin_system_seo_save','AdminSystemSeo::save');
