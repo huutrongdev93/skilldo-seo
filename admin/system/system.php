@@ -142,8 +142,8 @@ class AdminSystemSeo {
         if(Admin::isRoot())
         {
             Option::update('seo_point', $request->input('seo_point'));
+            Option::update('seo_point_support' , $request->input('seo_point_support'));
         }
-        Option::update('seo_point_support' , $request->input('seo_point_support'));
 
         $seo404 = $request->input('seo_404');
 
