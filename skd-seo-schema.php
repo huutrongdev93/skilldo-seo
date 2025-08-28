@@ -240,6 +240,14 @@ Class Schema {
 
         $this->schema = apply_filters('schema_render', $this->schema, Theme::getPage());
 
+        $schemaWebName = [
+            "@context" => "https://schema.org",
+            "@type" => "WebSite",
+            "name" => Str::clear(Option::get('general_title', '')),
+            "url" => Url::base(),
+        ];
+        echo '<script type="application/ld+json">'.json_encode($schemaWebName).'</script>';
+
         if(!empty($this->schema)) {
             if(have_posts($this->schema)) {
                 $this->schema = json_encode($this->schema);
