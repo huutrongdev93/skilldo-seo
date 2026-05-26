@@ -22,11 +22,21 @@ class SKDSeoSitemap {
             }
             $sitemap->setXml('</sitemapindex>');
         }
-        else {
+        else
+        {
+            if(str_contains($type, '-'))
+            {
+                $parts = explode('-', $type);
 
-            if(str_contains($type, '-')) {
-                $type = explode('-', $type);
-                $type = $type[0];
+                $last = end($parts);
+
+                if (is_numeric($last))
+                {
+                    array_pop($parts);
+                }
+
+                // Nối lại chuỗi
+                $type = implode('-', $parts);
             }
 
             $sitemap = apply_filters('seo_sitemap_'.str_replace('-', '_', trim($type)).'_xml', $sitemap, $request);
@@ -101,7 +111,6 @@ class SiteMapPostCategory {
     static function sitemap($sitemap) {
         $object = PostCategory::gets(Qr::set());
         $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-        $sitemap->itemUrl('/', DATE_ATOM, 'daily', 1.0);
         foreach ($object as $item) {
             $sitemap->itemUrl($item->slug, DATE_ATOM, 'weekly', 0.5);
         }
@@ -132,7 +141,8 @@ class SiteMapPost
         }
 
         $limit = 200;
-        if ($paging == 0) {
+        if ($paging == 0)
+        {
             $total = Posts::count();
             $pagingTotal = ceil($total / $limit);
             if ($pagingTotal > 1) {
@@ -145,7 +155,9 @@ class SiteMapPost
                 $paging = 1;
             }
         }
-        if ($paging != 0) {
+
+        if ($paging != 0)
+        {
             $object = Posts::gets(Qr::set()->offset(($paging - 1) * $limit)->limit($limit));
             $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
             foreach ($object as $item) {
@@ -155,6 +167,7 @@ class SiteMapPost
             }
             $sitemap->setXml('</urlset>');
         }
+
         return $sitemap;
     }
 }
@@ -175,7 +188,6 @@ class SiteMapProductCategory
     {
         $object = ProductCategory::gets(Qr::set());
         $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-        $sitemap->itemUrl('/', DATE_ATOM, 'daily', 1.0);
         foreach ($object as $item) {
             $sitemap->itemUrl($item->slug, DATE_ATOM, 'weekly', 0.5);
         }
