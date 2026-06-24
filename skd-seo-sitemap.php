@@ -12,6 +12,7 @@ class SKDSeoSitemap {
             ->setXml('<?xml version="1.0" encoding="UTF-8"?>')
             ->setXml('<?xml-stylesheet type="text/xsl" href="'.Url::base().SKD_SEO_PATH.'assets/main-sitemap.xsl"?>');
         $type = $request->input('p');
+
         if(empty($type)) {
             $sitemapList = apply_filters('seo_sitemap_list', []);
             $sitemap->setXml('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
@@ -92,7 +93,7 @@ class SiteMapPage {
     static function sitemap($sitemap) {
         $object = Pages::gets(Qr::set());
         $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-        $sitemap->itemUrl('/', DATE_ATOM, 'daily', 1.0);
+        $sitemap->itemUrl('', DATE_ATOM, 'daily', 1.0);
         foreach ($object as $item) {
             $sitemap->itemUrl($item->slug, DATE_ATOM, 'weekly', 0.5);
         }
@@ -133,25 +134,38 @@ class SiteMapPost
     {
         $type = $request->input('p');
         $paging = 0;
-        if(str_contains($type, '-')) {
-            $type = explode('-', $type);
-            if(count($type) == 3 && $type[1] == 'paging' && is_numeric($type[2])) {
-                $paging = $type[2];
+
+        if(str_contains($type, '-'))
+        {
+            $parts = explode('-', $type);
+
+            $last = end($parts);
+
+            if (is_numeric($last))
+            {
+                $paging = $last;
             }
         }
 
         $limit = 200;
+
         if ($paging == 0)
         {
             $total = Posts::count();
+
             $pagingTotal = ceil($total / $limit);
-            if ($pagingTotal > 1) {
+
+            if ($pagingTotal > 1)
+            {
                 $sitemap->setXml('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-                for ($page = 1; $page <= $pagingTotal; $page++) {
-                    $sitemap->item('sitemap.xml?p=post-paging-' . $page, DATE_ATOM);
+                for ($page = 1; $page <= $pagingTotal; $page++)
+                {
+                    $sitemap->item('sitemap.xml?p=post-' . $page, DATE_ATOM);
                 }
                 $sitemap->setXml('</sitemapindex>');
-            } else {
+            }
+            else
+            {
                 $paging = 1;
             }
         }
@@ -214,10 +228,15 @@ class SiteMapProduct
         $limit = 200;
         $type = $request->input('p');
         $paging = 0;
-        if(str_contains($type, '-')) {
-            $type = explode('-', $type);
-            if(count($type) == 3 && $type[1] == 'paging' && is_numeric($type[2])) {
-                $paging = $type[2];
+        if(str_contains($type, '-'))
+        {
+            $parts = explode('-', $type);
+
+            $last = end($parts);
+
+            if (is_numeric($last))
+            {
+                $paging = $last;
             }
         }
         if ($paging == 0) {
@@ -226,7 +245,7 @@ class SiteMapProduct
             if ($pagingTotal > 1) {
                 $sitemap->setXml('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
                 for ($page = 1; $page <= $pagingTotal; $page++) {
-                    $sitemap->item('sitemap.xml?p=product-paging-' . $page, DATE_ATOM);
+                    $sitemap->item('sitemap.xml?p=product-' . $page, DATE_ATOM);
                 }
                 $sitemap->setXml('</sitemapindex>');
             } else {
