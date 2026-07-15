@@ -17,6 +17,7 @@ class SkdSeoServiceProvider extends ServiceProvider
     {
         SetLanguage::exclude([
             'robots.txt',
+            'llms.txt',
             'sitemap.xml',
             'sitemap*.xml',
         ]);
