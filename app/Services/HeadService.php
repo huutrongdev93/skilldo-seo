@@ -138,11 +138,35 @@ class HeadService
                 }
                 $attr = trim($attr);
             }
-            $this->meta[] = [
+            $item = [
                 'name' => $name,
                 'content' => $content,
                 'attr' => $attr
             ];
+
+            /*
+            | Meta có tên (description, keywords, robots, image...) chỉ được
+            | phép xuất hiện MỘT lần. Các filter seo_head_base / seo_render của
+            | plugin chạy sau khi giá trị mặc định đã set lại, nên nếu cứ nối
+            | thêm thì trang sẽ có hai thẻ description với nội dung khác nhau.
+            |
+            | Meta không tên (og:*, twitter:* khai báo bằng property/itemprop)
+            | vẫn nối bình thường vì mỗi thẻ là một thuộc tính khác nhau.
+            */
+            if (!empty($name))
+            {
+                foreach ($this->meta as $index => $meta)
+                {
+                    if ($meta['name'] === $name)
+                    {
+                        $this->meta[$index] = $item;
+
+                        return $this;
+                    }
+                }
+            }
+
+            $this->meta[] = $item;
         }
         return $this;
     }

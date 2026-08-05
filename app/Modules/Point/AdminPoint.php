@@ -118,9 +118,21 @@ Class AdminPoint
         }
     }
 
+    /**
+     * Đối tượng đang hiển thị.
+     *
+     * Mặc định là Cms::getData('object') — quy ước của post/page/sản phẩm.
+     * Plugin đặt dữ liệu ở data-bag khác (travel dùng 'tour', 'category',
+     * 'archive') ánh xạ lại qua filter seo_point_object.
+     */
+    protected static function object($page)
+    {
+        return apply_filters('seo_point_object', Cms::getData('object'), $page);
+    }
+
     static function schemaRender($schema, $page) {
 
-        $object = Cms::getData('object');
+        $object = self::object($page);
 
         if(hasItems($object))
         {
@@ -136,18 +148,16 @@ Class AdminPoint
 
                 $class = new $module['class'];
 
-                $seo_schema = $class->schemaRender($object, $page);
+                $seo_schema = $class->schemaRender($page, $object);
 
                 if(hasItems($seo_schema)) {
                     break;
                 }
             }
 
-            if($seo_schema === false) {
+            if(!hasItems($seo_schema)) {
                 return $schema;
             }
-
-            $seo_schema = [];
 
             $seo_schema = apply_filters('seo_schema', $seo_schema, $object);
 
@@ -155,8 +165,19 @@ Class AdminPoint
 
             $seo_schema_custom = (empty($seo_schema['schema'])) ? '' : $seo_schema['schema'];
 
-            if($seo_schema_mode == 'custom') {
-                $schema = $seo_schema_custom;
+            if($seo_schema_mode == 'custom' && !empty($seo_schema_custom)) {
+
+                /*
+                | Schema thủ công lưu dưới dạng chuỗi JSON. Phải decode về mảng
+                | các node: Schema::render() foreach trên biến này, gán thẳng
+                | chuỗi vào sẽ làm vỡ toàn bộ thẻ ld+json của trang.
+                */
+                $custom = json_decode($seo_schema_custom, true);
+
+                if(is_array($custom) && !empty($custom)) {
+
+                    $schema = (isset($custom[0]) && is_array($custom[0])) ? $custom : [$custom];
+                }
             }
         }
 
@@ -165,13 +186,13 @@ Class AdminPoint
 
     static function seoRender($seo_helper, $page) {
 
-        $object = Cms::getData('object');
+        $object = self::object($page);
 
         if(hasItems($object)) {
 
             $modules = SeoPoint::module();
 
-            $seo = true;
+            $seo = false;
 
             foreach($modules as $module) {
 
@@ -181,14 +202,14 @@ Class AdminPoint
 
                 $class = new $module['class'];
 
-                $seo = $class->seoRender($object, $page);
+                $seo = $class->seoRender($page, $object);
 
                 if(hasItems($seo)) {
                     break;
                 }
             }
 
-            if($seo === false) {
+            if(!hasItems($seo)) {
                 return $seo_helper;
             }
 
@@ -227,6 +248,12 @@ Class AdminPoint
             $seo_canonical = apply_filters('seo_canonical', $seo_canonical, $object);
 
             if(!empty($seo_canonical)) {
+
+                //Lúc lưu đã cắt bỏ domain — canonical bắt buộc phải là URL tuyệt đối
+                if(!Url::is($seo_canonical)) {
+                    $seo_canonical = Url::base($seo_canonical);
+                }
+
                 $seo_helper->addCode('canonical', '<link rel="canonical" href="'.$seo_canonical.'" />');
             }
         }

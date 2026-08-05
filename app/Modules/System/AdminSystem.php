@@ -149,6 +149,12 @@ class AdminSystem
             $seoPointSupport['post_'.$postType] = $post['labels']['name'];
         }
 
+        /*
+        | Plugin ngoài (travel...) tự thêm module của mình vào danh sách chấm
+        | điểm seo qua filter này.
+        */
+        $seoPointSupport = apply_filters('seo_point_support_module', $seoPointSupport);
+
         $form = form();
 
         $form->select('seo_point',  ['label' => 'Chấm điểm seo'], Option::get('seo_point'))->options([0 => 'không sử dụng', 1 => 'Sử dụng']);
