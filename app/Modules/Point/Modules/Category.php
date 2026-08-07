@@ -37,9 +37,20 @@ class Category
         return PostCategory::updateMeta($id, 'seo_schema', $data);
     }
 
+    /**
+     * Trang lưu trữ theo thẻ (tag) cũng báo mình là `post_index` — nó dùng chung
+     * template với trang danh mục. Không kiểm tra kiểu đối tượng thì module này
+     * sẽ đọc `categories_metadata` bằng id của thẻ và trả về thiết lập seo của
+     * một danh mục hoàn toàn khác.
+     */
+    static protected function isCategory($object): bool
+    {
+        return $object instanceof PostCategory;
+    }
+
     public function schemaRender($page, $object) {
 
-        if($page != 'post_index') {
+        if($page != 'post_index' || !self::isCategory($object)) {
             return false;
         }
 
@@ -48,7 +59,7 @@ class Category
 
     public function seoRender($page, $object): false|array
     {
-        if($page != 'post_index') {
+        if($page != 'post_index' || !self::isCategory($object)) {
             return false;
         }
 

@@ -51,7 +51,12 @@ class LlmsGroup
 
             foreach ($this->items as $item)
             {
-                $output .= '- [' . trim($item['title']) . '] (' . $item['url'] . ')';
+                /*
+                | KHÔNG được có khoảng trắng giữa `]` và `(` — đó mới là cú pháp
+                | link Markdown hợp lệ. Trước đây nối '] (' nên không một dòng nào
+                | trong llms.txt được nhận là link.
+                */
+                $output .= '- [' . trim($item['title']) . '](' . $item['url'] . ')';
 
                 if (!empty($item['description']))
                 {

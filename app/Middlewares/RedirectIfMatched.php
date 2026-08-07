@@ -15,7 +15,13 @@ class RedirectIfMatched
             return $next($request);
         }
 
-        if(!empty(config('skd-seo::log404.redirect', false)))
+        /*
+        | Công tắc RIÊNG của bảng Chuyển Hướng, mặc định BẬT (config/redirect.php).
+        | Trước đây dùng nhờ `skd-seo::log404.redirect` — option của mục Log 404,
+        | mặc định rỗng và không có ô bật/tắt nào trong màn Chuyển Hướng — nên mọi
+        | chuyển hướng thêm qua admin đều im lặng không chạy.
+        */
+        if(!empty(config('skd-seo::redirect.enabled', true)))
         {
             $currentPath = ltrim($request->path(), '/');
 

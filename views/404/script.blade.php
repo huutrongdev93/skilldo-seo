@@ -31,7 +31,7 @@
 
 		let data 		= element.serializeJSON();
 
-		data.action =  'SkdSeo\\Ajax\\Long404::save';
+		data.action =  'SkdSeo\\Ajax\\Log404::save';
 
 		data.id     =  item.id;
 

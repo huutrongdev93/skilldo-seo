@@ -68,7 +68,9 @@ Class AdminPoint
             'formRobots'    => $formRobots,
             'formCanonical' => $formCanonical,
             'formSchema'    => $formSchema,
-            'focusKeyword' => $focusKeyword,
+            'focusKeyword'  => $focusKeyword,
+            //Mỗi module có bộ tiêu chí riêng, xem SeoPoint::criteria()
+            'criteria'      => SeoPoint::criteria($metaBox['module'] ?? ''),
         ]);
     }
 
@@ -121,13 +123,30 @@ Class AdminPoint
     /**
      * Đối tượng đang hiển thị.
      *
-     * Mặc định là Cms::getData('object') — quy ước của post/page/sản phẩm.
-     * Plugin đặt dữ liệu ở data-bag khác (travel dùng 'tour', 'category',
-     * 'archive') ánh xạ lại qua filter seo_point_object.
+     * Mặc định là Cms::getData('object') — quy ước của trang CHI TIẾT
+     * (post/page/sản phẩm).
+     *
+     * Trang LƯU TRỮ (danh mục bài viết, danh mục sản phẩm, thẻ) không đặt data-bag
+     * đó, đối tượng của trang nằm ở 'category'. Thiếu nhánh dự phòng này thì mọi
+     * thiết lập No Index / Canonical / Schema thủ công của danh mục đều lưu được
+     * trong admin nhưng không bao giờ xuất ra ngoài trang.
+     *
+     * Không sợ nhầm trang: trang chi tiết cấp cả hai biến nên 'object' luôn thắng,
+     * và mỗi module còn tự kiểm tra tên trang + kiểu đối tượng của nó.
+     *
+     * Plugin đặt dữ liệu ở data-bag khác (travel dùng 'tour', 'archive') ánh xạ
+     * lại qua filter seo_point_object.
      */
     protected static function object($page)
     {
-        return apply_filters('seo_point_object', Cms::getData('object'), $page);
+        $object = Cms::getData('object');
+
+        if(noItems($object))
+        {
+            $object = Cms::getData('category');
+        }
+
+        return apply_filters('seo_point_object', $object, $page);
     }
 
     static function schemaRender($schema, $page) {

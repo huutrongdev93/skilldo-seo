@@ -72,9 +72,10 @@ Class Schema {
             ],
         ];
 
-        $this->schemas[] = [
+        $organization = [
             "@context"      => $this->website,
             "@type"         => "Organization",
+            "@id"           => Url::base().'#organization',
             "name"          => Option::get('general_label'),
             "alternateName" => $this->title,
             "url"           => Url::base(),
@@ -86,7 +87,54 @@ Class Schema {
             ],
         ];
 
+        if(!empty(Option::get('contact_address')))
+        {
+            $organization['address'] = [
+                "@type"          => "PostalAddress",
+                "streetAddress"  => Option::get('contact_address'),
+                "addressCountry" => static::country(),
+            ];
+        }
+
+        /*
+        | sameAs = các hồ sơ chính thức khác của cùng một pháp nhân. Đây là tín
+        | hiệu để bộ máy tìm kiếm và mô hình ngôn ngữ nối website với một thực thể
+        | có thật thay vì coi là một tên miền vô danh.
+        */
+        $sameAs = static::sameAs();
+
+        if(!empty($sameAs))
+        {
+            $organization['sameAs'] = $sameAs;
+        }
+
+        $this->schemas[] = $organization;
+
         return $this;
+    }
+
+    /**
+     * Danh sách hồ sơ mạng xã hội (option `seo_social_profiles`, mỗi dòng 1 URL)
+     */
+    static function sameAs(): array
+    {
+        $raw = (string)Option::get('seo_social_profiles', '');
+
+        $links = preg_split('/\r\n|\r|\n/', $raw);
+
+        $links = array_values(array_filter(array_map('trim', $links), function ($link) {
+            return $link !== '' && Url::is($link);
+        }));
+
+        return apply_filters('schema_same_as', $links);
+    }
+
+    /**
+     * Mã quốc gia ISO của doanh nghiệp
+     */
+    static function country(): string
+    {
+        return apply_filters('schema_country', (string)Option::get('seo_country', 'VN'));
     }
 
     public function home(): static
@@ -95,9 +143,10 @@ Class Schema {
 
         if(!empty($schemaLocalBusiness['enabled']))
         {
-            $this->schemas[] = [
+            $business = [
                 "@context"      => $this->website,
                 "@type"         => "LocalBusiness",
+                "@id"           => Url::base().'#localbusiness',
                 "name"          => Option::get('general_label'),
                 "alternateName" => $this->title,
                 "url"           => Url::base(),
@@ -106,13 +155,100 @@ Class Schema {
                 "address"       => [
                     "@type"         => "PostalAddress",
                     "streetAddress" => Option::get('contact_address'),
-                    "addressLocality"=> $schemaLocalBusiness['addressLocality'] ?? '',
-                    "addressCountry"=> "VN",
+                    /*
+                    | Tỉnh / thành phố là đơn vị hành chính cấp 1 -> addressRegion.
+                    | addressLocality theo schema.org là quận / huyện / phường.
+                    | Trước đây khai nhầm cấp nên Google đọc tên tỉnh như tên phường.
+                    */
+                    "addressRegion" => $schemaLocalBusiness['addressLocality'] ?? '',
+                    "addressCountry"=> static::country(),
                 ],
                 "telephone"     => Option::get('contact_phone'),
                 "openingHours"  => $schemaLocalBusiness['openingHours'] ?? '',
             ];
+
+            $sameAs = static::sameAs();
+
+            if(!empty($sameAs))
+            {
+                $business['sameAs'] = $sameAs;
+            }
+
+            $this->schemas[] = $business;
         }
+
+        return $this;
+    }
+
+    /**
+     * BreadcrumbList dạng JSON-LD.
+     *
+     * Dữ liệu lấy từ đúng hai filter mà ThemeBreadcrumb dùng, nhưng KHÔNG khởi
+     * tạo singleton của theme: head render trước body, đụng vào singleton ở đây
+     * sẽ chốt luôn dữ liệu cho breadcrumb hiển thị bên dưới.
+     *
+     * Lưu ý: theme vẫn xuất BreadcrumbList dạng microdata (SKDSeoSchemaBreadcrumb).
+     * Hai bản mô tả cùng một danh sách, công cụ tìm kiếm gộp lại làm một; bản
+     * JSON-LD thêm ở đây là để các trình đọc chỉ hiểu JSON-LD vẫn thấy breadcrumb.
+     */
+    public function breadcrumb(): static
+    {
+        $page = Theme::getPage();
+
+        if(empty($page))
+        {
+            return $this;
+        }
+
+        $language = \SkillDo\Cms\Support\Language::current();
+
+        $crumbs = apply_filters('theme_breadcrumb_'.$page.'_data', [], $language);
+
+        $crumbs = apply_filters('theme_breadcrumb_data', $crumbs, $page, $language);
+
+        if(!hasItems($crumbs))
+        {
+            return $this;
+        }
+
+        $itemListElement = [[
+            "@type"    => "ListItem",
+            "position" => 1,
+            "name"     => trans('theme::general.home'),
+            "item"     => Url::base(),
+        ]];
+
+        $position = 2;
+
+        foreach ($crumbs as $crumb)
+        {
+            $name = Str::clear((string)($crumb->name ?? ''));
+
+            if($name === '')
+            {
+                continue;
+            }
+
+            $url = (string)($crumb->slug ?? '');
+
+            $itemListElement[] = [
+                "@type"    => "ListItem",
+                "position" => $position++,
+                "name"     => $name,
+                "item"     => (Url::is($url)) ? $url : Url::base($url),
+            ];
+        }
+
+        if(count($itemListElement) < 2)
+        {
+            return $this;
+        }
+
+        $this->schemas[] = [
+            "@context"          => $this->website,
+            "@type"             => "BreadcrumbList",
+            "itemListElement"   => $itemListElement,
+        ];
 
         return $this;
     }
@@ -214,6 +350,17 @@ Class Schema {
         return $this;
     }
 
+    /**
+     * Tên nhà xuất bản = tên website.
+     *
+     * $this->title là tiêu đề của TRANG hiện tại (đã bị setTitle ghi đè), dùng
+     * làm publisher.name thì mỗi bài viết lại khai một nhà xuất bản khác nhau.
+     */
+    protected function publisherName(): string
+    {
+        return Str::clear((string)(Option::get('general_label') ?: Option::get('general_title', '')));
+    }
+
     public function post($item): static
     {
         if (hasItems($item)) {
@@ -223,7 +370,9 @@ Class Schema {
                 "mainEntityOfPage" => Url::current(),
                 "headline" => $this->title,
                 "datePublished" => date(DATE_ATOM, strtotime($item->created)),
-                "dateModified" => date(DATE_ATOM),
+                //Ngày sửa thật của bài, không phải thời điểm khách mở trang
+                "dateModified" => date(DATE_ATOM, strtotime(!empty($item->updated) ? $item->updated : $item->created)),
+                "inLanguage" => \SkillDo\Cms\Support\Language::current(),
                 "image" => array(
                     "@type" => "ImageObject",
                     "url" => $this->image,
@@ -232,11 +381,11 @@ Class Schema {
                 ),
                 "author" => array(
                     "@type" => "Person",
-                    "name" => 'Quản trị',
+                    "name" => apply_filters('schema_author_name', 'Quản trị', $item),
                 ),
                 "publisher" => array(
                     "@type" => "Organization",
-                    "name" => $this->title,
+                    "name" => $this->publisherName(),
                     "logo" => array(
                         "@type" => "ImageObject",
                         "url" => Url::base(Image::source(Option::get('logo_header'))->link()),
@@ -246,8 +395,86 @@ Class Schema {
                 ),
             ];
 
+            /*
+            | Thẻ của bài viết chính là chủ đề bài viết — khai báo vào keywords
+            | để Google hiểu bài nói về cái gì mà không phải suy từ nội dung.
+            */
+            $names = SeoTag::postTagNames((int)$item->id);
+
+            if(hasItems($names))
+            {
+                $schema['keywords'] = implode(', ', array_map(function ($name) {
+                    return Str::clear((string)$name);
+                }, $names));
+            }
+
             $this->schemas[] = $schema;
         }
+
+        return $this;
+    }
+
+    /**
+     * Trang lưu trữ theo thẻ.
+     *
+     * Không dùng lại category(): trang thẻ là một danh sách liên kết chứ không
+     * phải một bài báo, khai là NewsArticle sẽ bị Search Console báo thiếu hàng
+     * loạt trường bắt buộc (author, datePublished thật...).
+     */
+    public function tag($item): static
+    {
+        if(noItems($item))
+        {
+            return $this;
+        }
+
+        $schema = [
+            "@context"      => $this->website,
+            "@type"         => "CollectionPage",
+            "@id"           => Url::current(),
+            "url"           => Url::current(),
+            "name"          => $this->title,
+            "description"   => $this->description,
+            "isPartOf"      => [
+                "@type" => "WebSite",
+                "name"  => Option::get('general_label'),
+                "url"   => Url::base(),
+            ],
+        ];
+
+        $objects = Cms::getData('objects');
+
+        if(hasItems($objects))
+        {
+            $itemListElement = [];
+
+            $position = 1;
+
+            foreach ($objects as $object)
+            {
+                if(empty($object->slug))
+                {
+                    continue;
+                }
+
+                $itemListElement[] = [
+                    "@type"     => "ListItem",
+                    "position"  => $position++,
+                    "url"       => Url::base(Url::permalink((string)$object->slug)),
+                    "name"      => Str::clear((string)($object->title ?? '')),
+                ];
+            }
+
+            if(!empty($itemListElement))
+            {
+                $schema['mainEntity'] = [
+                    "@type"             => "ItemList",
+                    "itemListElement"   => $itemListElement,
+                ];
+            }
+        }
+
+        $this->schemas[] = $schema;
 
         return $this;
     }
@@ -262,7 +489,8 @@ Class Schema {
                 "mainEntityOfPage" => Url::current(),
                 "headline" => $this->title,
                 "datePublished" => date(DATE_ATOM, strtotime($item->created)),
-                "dateModified" => date(DATE_ATOM),
+                "dateModified" => date(DATE_ATOM, strtotime(!empty($item->updated) ? $item->updated : $item->created)),
+                "inLanguage" => \SkillDo\Cms\Support\Language::current(),
                 "image" => array(
                     "@type" => "ImageObject",
                     "url" => $this->image,
@@ -271,11 +499,11 @@ Class Schema {
                 ),
                 "author" => array(
                     "@type" => "Person",
-                    "name" => 'Quản trị',
+                    "name" => apply_filters('schema_author_name', 'Quản trị', $item),
                 ),
                 "publisher" => array(
                     "@type" => "Organization",
-                    "name" => $this->title,
+                    "name" => $this->publisherName(),
                     "logo" => array(
                         "@type" => "ImageObject",
                         "url" => Url::base(Image::source(Option::get('logo_header'))->link()),
@@ -297,9 +525,27 @@ Class Schema {
 
         if(is_home()) $this->home();
 
+        if(!is_home()) $this->breadcrumb();
+
         if(Theme::isPage('products_detail')) $this->product(Cms::getData('object'));
 
-        if(Theme::isPage('post_index')) $this->category(Cms::getData('category'));
+        if(Theme::isPage('post_index'))
+        {
+            /*
+            | Trang thẻ dùng chung template với trang danh mục nên cũng là
+            | `post_index` — phân biệt bằng data-bag `tag` do TagController cấp.
+            */
+            $tag = Cms::getData('tag');
+
+            if(hasItems($tag))
+            {
+                $this->tag($tag);
+            }
+            else
+            {
+                $this->category(Cms::getData('category'));
+            }
+        }
 
         if(Theme::isPage('post_detail')) $this->post(Cms::getData('object'));
 

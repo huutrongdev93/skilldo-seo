@@ -93,6 +93,21 @@ class AdminSystem
 
         $form = form();
 
+        /*
+        | sameAs: các hồ sơ chính thức khác của cùng pháp nhân. Đây là tín hiệu
+        | mạnh nhất để bộ máy tìm kiếm và mô hình ngôn ngữ nối website với một
+        | thực thể có thật thay vì coi là tên miền vô danh.
+        */
+        $form->textarea('seo_social_profiles', [
+            'label' => 'Hồ sơ mạng xã hội',
+            'note'  => 'Mỗi dòng một URL đầy đủ (Facebook, Youtube, LinkedIn, Zalo OA...). Dùng cho thuộc tính sameAs của schema.',
+        ], Option::get('seo_social_profiles'));
+
+        $form->text('seo_country', [
+            'label' => 'Mã quốc gia',
+            'note'  => 'Mã ISO 2 ký tự dùng cho địa chỉ trong schema, mặc định VN',
+        ], Option::get('seo_country', 'VN'));
+
         $form->switch('schemaLocalBusiness[enabled]', [
             'label' => 'Kích hoạt Schema LocalBusiness',
             'note'  => "Bật/Tắt chức năng Schema LocalBusiness",
@@ -212,6 +227,8 @@ class AdminSystem
         Option::update('footer_script' , $request->input('footer_script'));
         Option::update('skd_seo_robots' , $request->input('skd_seo_robots'));
         Option::update('schemaLocalBusiness' , $request->input('schemaLocalBusiness'));
+        Option::update('seo_social_profiles' , $request->input('seo_social_profiles'));
+        Option::update('seo_country' , strtoupper(trim((string)$request->input('seo_country'))) ?: 'VN');
         if(Admin::isRoot())
         {
             Option::update('seo_point', $request->input('seo_point'));

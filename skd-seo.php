@@ -156,12 +156,38 @@ class SkdSeo
         $headService = apply_filters('seo_head_base', $headService, Theme::getPage());
 
         //OpenGraph
+        $isArticle = Theme::isPage('post_detail');
+
         $headService
             ->addProperty('og:title', $headService->title)
             ->addProperty('og:description', $headService->description)
             ->addProperty('og:image', $headService->image)
-            ->addProperty('og:type', 'website')
+            ->addProperty('og:type', ($isArticle) ? 'article' : 'website')
             ->addProperty('og:url', Url::current());
+
+        /*
+        | Thời điểm xuất bản / cập nhật của bài viết. Không có hai thẻ này thì
+        | mạng xã hội và công cụ tổng hợp nội dung không biết bài mới hay cũ.
+        */
+        if($isArticle)
+        {
+            $object = Cms::getData('object');
+
+            if(hasItems($object))
+            {
+                if(!empty($object->created))
+                {
+                    $headService->addProperty('article:published_time', date(DATE_ATOM, strtotime($object->created)));
+                }
+
+                $modified = (!empty($object->updated)) ? $object->updated : ($object->created ?? '');
+
+                if(!empty($modified))
+                {
+                    $headService->addProperty('article:modified_time', date(DATE_ATOM, strtotime($modified)));
+                }
+            }
+        }
 
         if(!empty(Option::get('facebook_app_id')))
         {

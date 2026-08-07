@@ -1,6 +1,7 @@
 <?php
 
 use SkdSeo\Modules\System\AdminSystem;
+use SkdSeo\Modules\System\AdminSystemLlms;
 use SkillDo\Cms\Support\Admin;
 
 /*
@@ -26,6 +27,8 @@ add_action('admin_system_seo_html',[AdminSystem::class, 'renderProduct'], 15);
 add_action('admin_system_seo_html',[AdminSystem::class, 'renderScript'], 20);
 add_action('admin_system_seo_html',[AdminSystem::class, 'renderSchema'], 30);
 add_action('admin_system_seo_html',[AdminSystem::class, 'renderRobots'], 40);
+//Cấu hình cho công cụ tìm kiếm AI (llms.txt + luật crawler AI trong robots.txt)
+add_action('admin_system_seo_html',[AdminSystemLlms::class, 'render'], 45);
 
 if(Admin::isRoot())
 {
@@ -40,3 +43,4 @@ add_action('admin_system_seo_html',[AdminSystem::class, 'renderRedirect'], 50);
 | Đăng ký method lưu lại các thông tin seo
 */
 add_action('admin_system_seo_save',[AdminSystem::class, 'save']);
+add_action('admin_system_seo_save',[AdminSystemLlms::class, 'save']);

@@ -28,7 +28,8 @@
                 <div id="seo_panel_base" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="seo_panel_heading_base">
                     <div class="panel-body">
                         <ul>
-                            @foreach (\SkdSeo\Supports\SeoPoint::listCriteria() as $key => $label)
+                            @php($criteria = (isset($criteria) && hasItems($criteria)) ? $criteria : \SkdSeo\Supports\SeoPoint::listCriteria())
+                            @foreach ($criteria as $key => $label)
                                 <li key="{{$key}}" class="seo-check-{{$key}} test-fail">
                                     <span class="icon"><i class="fal fa-times"></i></span>
                                     <span class="txt">{{$label}}</span>
@@ -98,6 +99,20 @@
 
         let language = '<?php echo Language::default();?>';
 
+        /*
+        | Chỉ những tiêu chí đang hiển thị mới được tính điểm: mỗi module có bộ
+        | tiêu chí riêng (xem SeoPoint::criteria) nên mẫu số cũng thay đổi theo.
+        */
+        let criteriaKeys = <?php echo json_encode(array_keys($criteria)); ?>;
+
+        let criteriaTotal = criteriaKeys.length || 1;
+
+        let point = 0;
+
+        function seoPointAdd(key) {
+            if(criteriaKeys.indexOf(key) !== -1) point++;
+        }
+
 		let seo_focus_keyword = $('#seo_focus_keyword');
 
 		let language_title = $('#'+language+'_title');
@@ -130,7 +145,13 @@
             'value' : seo_description.val(),
         };
 
-        let content = $('#'+language+'_content').val();
+        /*
+        | Không phải form nào cũng có trình soạn thảo nội dung (form thẻ chẳng
+        | hạn chỉ có tên + mô tả ngắn) — luôn để content là chuỗi rỗng thay vì
+        | undefined, nếu không stripHtml() sẽ nhét chữ "undefined" vào nội dung
+        | rồi đem đi đếm từ và tính mật độ từ khóa.
+        */
+        let content = $('#'+language+'_content').val() || '';
 
         let slug = $('#slug').val();
 
@@ -138,7 +159,7 @@
             slug = ChangeToSlug(title.value);
         }
 
-        title.value = title.value.toLowerCase();
+        title.value = (typeof title.value === 'string') ? title.value.toLowerCase() : '';
 
         keyword.value = keyword.value.toLowerCase();
 
@@ -152,12 +173,12 @@
 
         function seoRankMathGroup() {
 
-            let point = 0;
+            point = 0;
 
             if(keyword.value.length !== 0) {
                 //keywordInTitle
                 if(title.value.search(keyword.value) !== -1) {
-                    point++;
+                    seoPointAdd('keywordInTitle');
                     seoRankMathChangeStatus('keywordInTitle', 'success');
                 }
 
@@ -165,7 +186,7 @@
                 let beginTitle = title.value.search(keyword.value);
 
                 if(beginTitle === 0) {
-                    point++;
+                    seoPointAdd('titleStartWithKeyword');
                     seoRankMathChangeStatus('titleStartWithKeyword', 'success');
                 }
                 else {
@@ -175,7 +196,7 @@
                         seoRankMathChangeStatus('titleStartWithKeyword', 'error');
                     }
                     else {
-                        point++;
+                        seoPointAdd('titleStartWithKeyword');
                         seoRankMathChangeStatus('titleStartWithKeyword', 'success');
                     }
                 }
@@ -184,7 +205,7 @@
             let titleLength = title.value.length;
 
             if(titleLength >= 10 && titleLength <= 70) {
-                point++;
+                seoPointAdd('lengthTitle');
                 seoRankMathChangeStatus('lengthTitle', 'success');
             }
             else {
@@ -198,7 +219,7 @@
             if(keyword.value.length !== 0) {
                 //keywordInMetaDescription
                 if (typeof description.value === 'string' && description.value.search(keyword.value) !== -1) {
-                    point++;
+                    seoPointAdd('keywordInMetaDescription');
                     seoRankMathChangeStatus('keywordInMetaDescription', 'success');
                 }
             }
@@ -207,7 +228,7 @@
             let descriptionLength = (typeof description.value === 'string') ? description.value.length : 0;
 
             if(descriptionLength >= 160 && descriptionLength <= 300) {
-                point++;
+                seoPointAdd('lengthMetaDescription');
                 seoRankMathChangeStatus('lengthMetaDescription', 'success');
             }
             else {
@@ -221,7 +242,7 @@
             if(keyword.value.length !== 0) {
                 //keywordInPermalink
                 if (slug.search(ChangeToSlug(keyword.value)) !== -1) {
-                    point++;
+                    seoPointAdd('keywordInPermalink');
                     seoRankMathChangeStatus('keywordInPermalink', 'success');
                 }
             }
@@ -238,7 +259,7 @@
                 object.find('span.icon').html(icon.error);
             }
             else {
-                point++;
+                seoPointAdd('lengthPermalink');
                 mess = 'Url có '+ slugLength +' ký tự. Tuyệt vời!';
                 object.removeClass('test-fail').addClass('test-success');
                 object.find('span.txt').html(mess);
@@ -253,11 +274,11 @@
                 let searchKey = contentRemoveHtml.search(keyword.value);
 
                 if (searchKey !== -1) {
-                    point++;
+                    seoPointAdd('keywordInContent');
                     seoRankMathChangeStatus('keywordInContent', 'success');
                     let firstKeyword = contentRemoveHtml.substr(0, keyword.value.length).toLowerCase();
                     if (keyword.value === firstKeyword) {
-                        point++;
+                        seoPointAdd('keywordIn10Percent');
                         seoRankMathChangeStatus('keywordIn10Percent', 'success');
                     }
                 }
@@ -267,7 +288,7 @@
             let contentWord = contentRemoveHtml.split(/[\s.,;]+/).length;
 
             if(contentWord >= 600 && contentWord <= 2500) {
-                point++;
+                seoPointAdd('lengthContent');
                 seoRankMathChangeStatus('lengthContent', 'success');
             }
             else {
@@ -285,7 +306,7 @@
                 let linksHasInternal = false;
                 $.each(internalLinks, function (index, value) {
                     if (internalLinks[index].href.toLowerCase().search(domain) !== -1) {
-                        point++;
+                        seoPointAdd('linksHasInternal');
                         seoRankMathChangeStatus('linksHasInternal', 'success');
                         linksHasInternal = true;
                         return true;
@@ -304,7 +325,7 @@
                 if (headingH2.length !== 0) {
                     $.each(headingH2, function (index, value) {
                         if (headingH2[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            point++;
+                            seoPointAdd('keywordInSubheadings');
                             seoRankMathChangeStatus('keywordInSubheadings', 'success');
                             keywordInSubheadings = true;
                             return true;
@@ -316,7 +337,7 @@
                 if (keywordInSubheadings === false && headingH3.length !== 0) {
                     $.each(headingH3, function (index, value) {
                         if (headingH3[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            point++;
+                            seoPointAdd('keywordInSubheadings');
                             seoRankMathChangeStatus('keywordInSubheadings', 'success');
                             keywordInSubheadings = true;
                             return true;
@@ -328,7 +349,7 @@
                 if (keywordInSubheadings === false && headingH4.length !== 0) {
                     $.each(headingH4, function (index, value) {
                         if (headingH4[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            point++;
+                            seoPointAdd('keywordInSubheadings');
                             seoRankMathChangeStatus('keywordInSubheadings', 'success');
                             keywordInSubheadings = true;
                             return true;
@@ -340,7 +361,7 @@
                 if (keywordInSubheadings === false && headingH5.length !== 0) {
                     $.each(headingH5, function (index, value) {
                         if (headingH5[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            point++;
+                            seoPointAdd('keywordInSubheadings');
                             seoRankMathChangeStatus('keywordInSubheadings', 'success');
                             keywordInSubheadings = true;
                             return true;
@@ -352,7 +373,7 @@
                 if (keywordInSubheadings === false && headingH6.length !== 0) {
                     $.each(headingH6, function (index, value) {
                         if (headingH6[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            point++;
+                            seoPointAdd('keywordInSubheadings');
                             seoRankMathChangeStatus('keywordInSubheadings', 'success');
                             keywordInSubheadings = true;
                             return true;
@@ -372,14 +393,14 @@
                 if(keyword.value.length !== 0) {
                     let keywordInImageAlt = false;
                     if (img.length >= 2) {
-                        point++;
+                        seoPointAdd('contentHasAssets');
                         seoRankMathChangeStatus('contentHasAssets', 'success');
                     } else {
                         seoRankMathChangeStatus('contentHasAssets', 'error');
                     }
                     $.each(img, function (index, value) {
                         if (img[index].alt.toLowerCase().search(keyword.value) !== -1) {
-                            point++;
+                            seoPointAdd('keywordInImageAlt');
                             seoRankMathChangeStatus('keywordInImageAlt', 'success');
                             keywordInImageAlt = true;
                             return true;
@@ -414,7 +435,7 @@
                     object.find('span.icon').html(icon.error);
                 }
                 else {
-                    point++;
+                    seoPointAdd('keywordDensity');
                     mess = 'Mật độ từ khóa là '+ keywordDensity +'. Số lần từ khóa xuất hiện là ' +nkr+'.';
                     object.removeClass('test-fail').addClass('test-success');
                     object.find('span.txt').html(mess);
@@ -425,7 +446,7 @@
             //contentHasShortParagraphs
             let tagP = tmp.getElementsByTagName('p');
             if (tagP.length >= 2) {
-                point++;
+                seoPointAdd('contentHasShortParagraphs');
                 seoRankMathChangeStatus('contentHasShortParagraphs', 'success');
             } else {
                 seoRankMathChangeStatus('contentHasShortParagraphs', 'error');
@@ -444,11 +465,11 @@
                 seoRankMathChangeStatus('keywordInSubheadings', 'error');
             }
             else {
-                point++;
+                seoPointAdd('keywordNotUsed');
                 seoRankMathChangeStatus('keywordNotUsed', 'success');
             }
 
-            point = (point/17)*100;
+            point = (point/criteriaTotal)*100;
 
             $('#seo_point').html(Math.ceil(point));
         }
@@ -553,9 +574,20 @@
             seoRankMathGroup();
         });
 
+        /*
+        | Form không có trình soạn thảo nội dung thì tinymce.get() trả về null —
+        | gọi thẳng .getContent() sẽ ném lỗi lặp lại mỗi 3 giây trong console.
+        */
         setInterval(function () {
-            if(content !== tinymce.get(language+'_content').getContent()) {
-                content = tinymce.get(language+'_content').getContent();
+
+            let editor = (typeof tinymce !== 'undefined') ? tinymce.get(language+'_content') : null;
+
+            if(editor === null || typeof editor === 'undefined') {
+                return;
+            }
+
+            if(content !== editor.getContent()) {
+                content = editor.getContent();
                 seoRankMathGroup();
             }
         }, 3000);

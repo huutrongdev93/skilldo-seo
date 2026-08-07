@@ -18,7 +18,8 @@ class Log404
 
             $ip      = $request->ip();
 
-            $log404 = \SkdSeo\Models\Log404::where('path', $url)->select('redirect', 'to', 'hit')->first();
+            //Phải lấy cả `id`: nhánh dưới dùng $log404->id để cộng `hit`
+            $log404 = \SkdSeo\Models\Log404::where('path', $url)->select('id', 'redirect', 'to', 'hit')->first();
 
             if(!hasItems($log404))
             {
@@ -51,11 +52,17 @@ class Log404
                     exit;
                 }
 
-                $redirectType = config('plugin.skd-seo.log404.redirect', 'home');
+                /*
+                | Cú pháp đọc config của plugin là `skd-seo::log404.*`.
+                | Khoá `plugin.skd-seo.log404.*` KHÔNG tồn tại nên luôn rơi về mặc
+                | định 'home' -> mọi 404 đã có bản ghi đều bị 301 về trang chủ dù
+                | người dùng không bật chuyển hướng.
+                */
+                $redirectType = config('skd-seo::log404.redirect', '');
 
                 if(!empty($redirectType))
                 {
-                    $target = config('plugin.skd-seo.log404.link', $redirectType);
+                    $target = config('skd-seo::log404.link', $redirectType);
 
                     if($redirectType == 'home')
                     {

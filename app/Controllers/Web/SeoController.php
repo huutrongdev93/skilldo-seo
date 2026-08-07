@@ -2,12 +2,10 @@
 
 namespace SkdSeo\Controllers\Web;
 
-use Illuminate\Support\Str;
-use SkdSeo\Services\Llms\LlmsContent;
+use SkdSeo\Services\Llms\LlmsService;
+use SkdSeo\Services\RobotsService;
 use SkdSeo\Services\SitemapService;
 use SkillDo\Cms\Controller;
-use SkillDo\Cms\Models\Page;
-use SkillDo\Cms\Support\Option;
 use SkillDo\Cms\Support\Url;
 use SkillDo\Http\Request;
 
@@ -21,83 +19,47 @@ class SeoController extends Controller
 
     public function robots(Request $request): void
     {
-        $robots = trim(Option::get('skd_seo_robots'));
+        echo RobotsService::content();
 
-        if(!empty($robots))
+        response()->header('Content-Type', 'text/plain')->send();
+        die;
+    }
+
+    /**
+     * Mục lục nội dung cho mô hình ngôn ngữ.
+     *
+     * Toàn bộ phần dựng dữ liệu nằm ở LlmsService — plugin khác bổ sung nội dung
+     * qua filter `skd_seo_llms_content`.
+     */
+    public function llms(Request $request): void
+    {
+        echo LlmsService::build()->render();
+
+        echo '## Sitemap'."\n";
+
+        echo '- [Sitemap]('.Url::base('sitemap.xml').')'."\n";
+
+        if(LlmsService::fullEnabled())
         {
-            echo $robots;
-        }
-        else
-        {
-            echo 'User-agent: *'."\n";
-            echo 'Disallow:/admin'."\n";
-            echo 'Disallow: /cgi-bin/'."\n";
-            echo 'Sitemap: '.Url::base('sitemap.xml')."\n";
+            echo '- [Toàn văn]('.Url::base('llms-full.txt').')'."\n";
         }
 
         response()->header('Content-Type', 'text/plain')->send();
         die;
     }
 
-    public function llms(Request $request): void
+    /**
+     * Bản toàn văn: nội dung trang và bài viết đã bóc thẻ HTML.
+     */
+    public function llmsFull(Request $request): void
     {
-        $llms = new LlmsContent();
-
-        $llms->group('main')->setDescription(Option::get('general_description'));
-
-        //Page
-        $llms->group('page')->addItem('Trang chủ', Url::base(), Option::get('general_description'));
-
-        $pages = Page::all();
-
-        foreach ($pages as $page)
+        if(!LlmsService::fullEnabled())
         {
-            if($page->slug == 'lien-he' || $page->slug == 'contact')
-            {
-                $llms->group('help')->addItem($page->title, Url::base($page->slug), 'Liên hệ với chúng tôi');
-                continue;
-            }
-
-            $llms->group('page')->addItem($page->title, Url::base($page->slug));
+            response()->setStatusCode(404)->header('Content-Type', 'text/plain')->send();
+            die;
         }
 
-        //Post
-        $postCategories = \SkillDo\Cms\Models\PostCategory::all();
-
-        foreach ($postCategories as $category)
-        {
-            $llms->group('category')->addItem($category->name, Url::base($category->slug));
-        }
-
-        //Product
-        if(class_exists('\Ecommerce\Models\Product'))
-        {
-            $llms->group('product')->addItem('All products', Url::base(URL_PRODUCT));
-
-            $productCategories = \Ecommerce\Models\ProductCategory::all();
-
-            foreach ($productCategories as $category)
-            {
-                $description = trim(Str::clear($category->excerpt ?? ''));
-
-                $llms->group('product_category')
-                    ->addItem($category->name, Url::base($category->slug), $description);
-            }
-        }
-
-        //FAQ
-        if(class_exists('QuestionAnswer'))
-        {
-            $llms->group('help')->addItem('FAQ', Url::base('faq'), 'Câu hỏi thường gặp');
-        }
-
-        $llms = apply_filters('skd_seo_llms_content', $llms);
-
-        echo $llms->render();
-
-        echo '## Sitemap'."\n";
-
-        echo '- [Sitemap]('.Url::base('sitemap.xml').')';
+        echo LlmsService::full();
 
         response()->header('Content-Type', 'text/plain')->send();
         die;

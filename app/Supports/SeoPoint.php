@@ -22,6 +22,24 @@ class SeoPoint
             ],
         ];
 
+        /*
+        | Sản phẩm nằm ở plugin sicommerce nhưng danh sách module hỗ trợ trong
+        | Cấu hình > Seo lại khai cứng hai key này, nên đăng ký luôn ở đây thay
+        | vì đi qua filter. Bắt buộc kiểm tra class_exists: hai lớp bên dưới gọi
+        | thẳng model của sicommerce, site không cài bán hàng mà vẫn đăng ký thì
+        | AdminPoint sẽ fatal khi khởi tạo chúng.
+        */
+        if(class_exists(\Ecommerce\Models\Product::class))
+        {
+            $module['products'] = [
+                'class' => \SkdSeo\Modules\Point\Modules\Product::class,
+            ];
+
+            $module['products_categories'] = [
+                'class' => \SkdSeo\Modules\Point\Modules\ProductCategory::class,
+            ];
+        }
+
         $module = apply_filters('seo_point_admin_module_enable', $module);
 
         return (!empty($key)) ? Arr::get($module, $key) : $module;
@@ -52,6 +70,21 @@ class SeoPoint
         if(!empty($key)) return Arr::get($listCriteria, $key);
 
         return $listCriteria;
+    }
+
+    /**
+     * Bộ tiêu chí chấm điểm áp dụng cho MỘT module.
+     *
+     * Không phải form nào cũng có đủ trường để chấm 17 tiêu chí — form thẻ chẳng
+     * hạn, không có trình soạn thảo nội dung nên mọi tiêu chí về nội dung,
+     * heading, ảnh đều không bao giờ đạt. Module tự rút gọn danh sách qua filter
+     * `seo_point_criteria`, điểm số được chia lại theo số tiêu chí còn lại.
+     */
+    static function criteria(string $module = ''): array
+    {
+        $criteria = apply_filters('seo_point_criteria', static::listCriteria(), $module);
+
+        return (is_array($criteria) && !empty($criteria)) ? $criteria : static::listCriteria();
     }
 
     static function registerMetabox(): void
