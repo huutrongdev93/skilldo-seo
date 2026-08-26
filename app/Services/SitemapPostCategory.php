@@ -1,6 +1,8 @@
 <?php
 namespace SkdSeo\Services;
 
+use SkillDo\Cms\Support\Url;
+
 use SkillDo\Cms\Models\PostCategory;
 
 class SitemapPostCategory
@@ -20,7 +22,9 @@ class SitemapPostCategory
 
         foreach ($object as $item)
         {
-            $sitemap->itemUrl($item->slug, DATE_ATOM, 'weekly', 0.5);
+            //Slug theo tung ngon ngu (CMS 8.2.0): moi ngon ngu mot slug rieng,
+            //ngon ngu chua dich thi Url::localizedSlugs() lui ve slug mac dinh.
+            $sitemap->itemUrl(Url::localizedSlugs($item), DATE_ATOM, 'weekly', 0.5);
         }
 
         $sitemap->setXml('</urlset>');

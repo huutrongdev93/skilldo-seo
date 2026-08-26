@@ -53,6 +53,23 @@ class SkdSeo
      */
     static function buildAlternateLinks(): array
     {
+        /*
+        | CMS 8.2.0: mỗi ngôn ngữ có thể mang slug riêng, nên với trang gắn với một
+        | đối tượng (bài viết, trang, danh mục, sản phẩm...) phải tra theo đối tượng
+        | đó. Đổi tiền tố trên URL hiện tại như bên dưới chỉ đúng khi mọi ngôn ngữ
+        | dùng chung một slug — làm vậy sẽ khai báo hreflang trỏ tới URL không tồn
+        | tại ở ngôn ngữ đã dịch, đúng thứ Google phạt.
+        |
+        | Trang không gắn đối tượng (trang chủ, tìm kiếm, tài khoản) rơi xuống nhánh
+        | cũ, vốn vẫn đúng vì chúng dùng chung đường dẫn ở mọi ngôn ngữ.
+        */
+        if(method_exists(Url::class, 'localized'))
+        {
+            $localized = Url::localized(Url::currentObject());
+
+            if(!empty($localized)) return $localized;
+        }
+
         $languages = \SkillDo\Cms\Support\Language::listKey();
 
         $default   = \SkillDo\Cms\Support\Language::default();

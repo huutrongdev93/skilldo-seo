@@ -156,12 +156,22 @@ class SitemapService
         return $this;
     }
 
+    /**
+     * @param string|array<string, string> $url slug KHÔNG kèm tiền tố ngôn ngữ.
+     *        Từ CMS 8.2.0 mỗi ngôn ngữ có thể mang slug riêng, nên nhận thêm dạng
+     *        mảng ['vi' => 'gioi-thieu', 'en' => 'about-us'] — dựng bằng
+     *        `Url::localizedSlugs($object)`. Truyền chuỗi thì mọi ngôn ngữ dùng
+     *        chung slug đó, đúng như trước.
+     */
     public function itemUrl($url, $date, $change, $priority): SitemapService
     {
         if(!Language::isMulti())
         {
+            //Site một ngôn ngữ: lấy slug của ngôn ngữ mặc định nếu được truyền mảng.
+            $single = is_array($url) ? ($url[Language::default()] ?? reset($url)) : $url;
+
             $item = '<url>'."\n";
-            $item .= '<loc>'.Url::base($url).'</loc>'."\n";
+            $item .= '<loc>'.Url::base($single).'</loc>'."\n";
             $item .= '<lastmod>'.date($date).'</lastmod>'."\n";
             $item .= '<changefreq>'.$change.'</changefreq>'."\n";
             $item .= '<priority>'.$priority.'</priority>'."\n";
@@ -170,15 +180,23 @@ class SitemapService
         }
         else
         {
+            $slugOf = function (string $language) use ($url): string {
+
+                if(!is_array($url)) return (string) $url;
+
+                //Ngôn ngữ chưa dịch slug thì dùng slug mặc định — URL đó vẫn phục vụ được.
+                return (string) ($url[$language] ?? $url[Language::default()] ?? reset($url));
+            };
+
             foreach (Language::listKey() as $lang)
             {
                 $item = '<url>'."\n";
-                $item .= '<loc>'.Url::base($lang.'/'.$url).'</loc>'."\n";
+                $item .= '<loc>'.Url::base($lang.'/'.$slugOf($lang)).'</loc>'."\n";
                 foreach (Language::listKey() as $langKey)
                 {
-                    $item .= '<xhtml:link rel="alternate" hreflang="'.$langKey.'" href="'.Url::base($langKey.'/'.$url).'"/>'."\n";
+                    $item .= '<xhtml:link rel="alternate" hreflang="'.$langKey.'" href="'.Url::base($langKey.'/'.$slugOf($langKey)).'"/>'."\n";
                 }
-                $item .= '<xhtml:link rel="alternate" hreflang="x-default" href="'.Url::base(Language::default().'/'.$url).'"/>'."\n";
+                $item .= '<xhtml:link rel="alternate" hreflang="x-default" href="'.Url::base(Language::default().'/'.$slugOf(Language::default())).'"/>'."\n";
                 $item .= '<lastmod>'.date($date).'</lastmod>'."\n";
                 $item .= '<changefreq>'.$change.'</changefreq>'."\n";
                 $item .= '<priority>'.$priority.'</priority>'."\n";

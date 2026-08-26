@@ -1,6 +1,8 @@
 <?php
 namespace SkdSeo\Services;
 
+use SkillDo\Cms\Support\Url;
+
 use Ecommerce\Models\Product;
 
 class SitemapProduct
@@ -51,7 +53,9 @@ class SitemapProduct
 
             foreach ($object as $item)
             {
-                $sitemap->itemUrl($item->slug, DATE_ATOM, 'weekly', 1.0);
+                //Slug theo tung ngon ngu (CMS 8.2.0): moi ngon ngu mot slug rieng,
+                //ngon ngu chua dich thi Url::localizedSlugs() lui ve slug mac dinh.
+                $sitemap->itemUrl(Url::localizedSlugs($item), DATE_ATOM, 'weekly', 1.0);
             }
 
             $sitemap->setXml('</urlset>');
