@@ -63,12 +63,9 @@ class SkdSeo
         | Trang không gắn đối tượng (trang chủ, tìm kiếm, tài khoản) rơi xuống nhánh
         | cũ, vốn vẫn đúng vì chúng dùng chung đường dẫn ở mọi ngôn ngữ.
         */
-        if(method_exists(Url::class, 'localized'))
-        {
-            $localized = Url::localized(Url::currentObject());
+        $localized = Url::localized(Url::currentObject());
 
-            if(!empty($localized)) return $localized;
-        }
+        if(!empty($localized)) return $localized;
 
         $languages = \SkillDo\Cms\Support\Language::listKey();
 
