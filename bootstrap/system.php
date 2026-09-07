@@ -2,6 +2,7 @@
 
 use SkdSeo\Modules\System\AdminSystem;
 use SkdSeo\Modules\System\AdminSystemLlms;
+use SkdSeo\Modules\System\AdminSystemNoIndex;
 use SkillDo\Cms\Support\Admin;
 
 /*
@@ -22,6 +23,8 @@ add_filter('admin_system_tabs', [AdminSystem::class, 'register'], 50);
 | renderPoint: Đăng ký mục cấu hình chấm điểm seo vào cấu hình seo
 | renderRedirect: Đăng ký mục cấu hình chuyển hướng cho link 404 vào cấu hình seo
 */
+//Chặn lập chỉ mục toàn website: đặt trên cùng vì nó ghi đè mọi thiết lập bên dưới
+add_action('admin_system_seo_html',[AdminSystemNoIndex::class, 'render'], 5);
 add_action('admin_system_seo_html',[AdminSystem::class, 'renderGeneral'], 10);
 add_action('admin_system_seo_html',[AdminSystem::class, 'renderProduct'], 15);
 add_action('admin_system_seo_html',[AdminSystem::class, 'renderScript'], 20);
@@ -44,3 +47,4 @@ add_action('admin_system_seo_html',[AdminSystem::class, 'renderRedirect'], 50);
 */
 add_action('admin_system_seo_save',[AdminSystem::class, 'save']);
 add_action('admin_system_seo_save',[AdminSystemLlms::class, 'save']);
+add_action('admin_system_seo_save',[AdminSystemNoIndex::class, 'save']);

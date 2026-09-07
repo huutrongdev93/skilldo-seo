@@ -31,6 +31,8 @@ class SkdSeo
     {
         Option::delete('skd_seo_robots');
 
+        Option::delete(\SkdSeo\Services\NoIndexService::OPTION);
+
         (include_once 'database/database.php')->down();
     }
 

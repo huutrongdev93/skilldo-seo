@@ -86,6 +86,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | `redirect.php` | Tab "Chuyển Hướng" + form/table/hook lưu-xóa module `seo_redirect` |
 | `log404.php` | Tab "Log 404" + `template_redirect` → `Log404::handle` |
 | `ajax.php` | Registry ajax: `SkdSeo\Ajax\Redirect::save`, `SkdSeo\Ajax\Long404::save` (⚠ xem Gotcha) |
+| `noindex.php` | Chặn lập chỉ mục toàn site (site demo). Cả file bọc trong `if(!NoIndexService::enabled() || Admin::is()) return;` |
 | `travel.php` | Cầu nối plugin travel — mọi callback tự kiểm tra `class_exists` trước |
 | `tag.php` | Cầu nối chức năng Thẻ của CMS 8.1.3+ — mọi callback tự kiểm tra `SeoTag::support()` |
 
@@ -97,6 +98,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | `Schema.php` | Sinh JSON-LD: `website()` (WebSite + Organization, có `sameAs`/`@id`), `home()` (LocalBusiness), `product()` (gộp rating từ plugin rating-star), `post()` (NewsArticle + `keywords` từ thẻ), `tag()` (CollectionPage + ItemList), `category()`, `breadcrumb()` (BreadcrumbList), `render()`. Helper tĩnh dùng chung: `sameAs()`, `country()` |
 | `RobotsService.php` | Nội dung `robots.txt` + danh sách 16 crawler AI (`aiAgents()`), cờ cho phép/chặn (`allowAi()`) |
 | `Llms/LlmsService.php` | Dựng `llms.txt` (`build()`) và `llms-full.txt` (`full()`), đọc cấu hình option `seo_llms` |
+| `NoIndexService.php` | Chặn lập chỉ mục toàn site: meta robots (`seo_render` @999), header `X-Robots-Tag`, và `robots.txt` = `Disallow: /` |
 | `ScriptService.php` | Echo `header_script` / `footer_script`. (`body_script` do **theme** render, không phải plugin) |
 | `SitemapService.php` | Bộ dựng XML: `item()` (sitemap index), `itemHome()`, `itemUrl()` — tất cả tự nhân bản theo ngôn ngữ khi đa ngữ |
 | `Sitemap{Page,Post,PostCategory,Product,ProductCategory}.php` | Từng nguồn dữ liệu. `Post`/`Product` có phân trang 200/trang; `Product*` chỉ đăng ký khi có alias `Product`/`ProductCategory` |
@@ -122,6 +124,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | `System/AdminSystem.php` | Toàn bộ khối cấu hình Seo + `save()` chung |
 | `System/AdminSystemTravel.php` | Khối meta cho trang danh sách tour |
 | `System/AdminSystemTag.php` | Khối "Trang Thẻ": bật/tắt sitemap thẻ + số bài tối thiểu để index |
+| `System/AdminSystemNoIndex.php` | Khối "Chặn lập chỉ mục" — công tắc `seo_noindex`, hiển thị đầu tab Seo (priority 5) |
 | `System/AdminSystemLlms.php` | Khối "Công cụ tìm kiếm AI": cho phép/chặn crawler AI, bật `llms-full.txt`, số mục mỗi nhóm |
 | `Redirect/` | `AdminRedirect` (tab + trang list/add), `Form` (FormAdmin cho module `seo_redirect`), `Table` (SKDObjectTable) |
 | `Log404/` | `AdminLog404` (tab + trang list), `Log404` (bắt 404 runtime), `Form`, `Table` |
@@ -148,6 +151,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | `seo_point`, `seo_point_support` | Bật chấm điểm seo + danh sách module áp dụng |
 | `seo_404` | `[enabled, redirect, link]` → merge vào config `skd-seo::log404` |
 | `seo_tag` | `[sitemap, min_count]` — cấu hình seo trang thẻ |
+| `seo_noindex` | `1` = chặn lập chỉ mục toàn website (site demo). Ghi đè mọi thiết lập robots khác |
 | `seo_llms` | `[ai_bots, full, limit]` — crawler AI, `llms-full.txt`, số mục mỗi nhóm |
 | `seo_social_profiles` | Hồ sơ mạng xã hội, mỗi dòng 1 URL → `sameAs` của Organization / LocalBusiness |
 | `seo_country` | Mã quốc gia ISO cho `addressCountry` (mặc định `VN`) |
@@ -171,6 +175,7 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 | `seo_sitemap_{key}_xml` | filter | `$sitemap, $type, $number, $request` | Sinh XML cho sitemap con |
 | `skd_seo_llms_content` | filter | `$llms` | Bổ sung nhóm/mục vào `llms.txt` |
 | `skd_seo_llms_full` | filter | `$text` | Can thiệp nội dung `llms-full.txt` |
+| `seo_noindex_directive` | filter | `$directive` | Đổi chỉ thị robots khi bật chặn lập chỉ mục (mặc định `noindex, nofollow, noarchive`) |
 | `skd_seo_robots_content` | filter | `$text` | Can thiệp nội dung `robots.txt` |
 | `skd_seo_ai_agents` | filter | `$agents` | Thêm/bớt crawler AI trong danh sách chặn |
 | `schema_same_as`, `schema_country`, `schema_author_name` | filter | giá trị | Ghi đè `sameAs` / mã quốc gia / tác giả bài viết |
@@ -217,6 +222,10 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - **Thiết lập seo thủ công của trang lưu trữ không xuất ra ngoài trang**: `AdminPoint::object()` chỉ đọc `Cms::getData('object')` — trang danh mục bài viết / danh mục sản phẩm / thẻ đặt đối tượng ở `category` nên metabox lưu được nhưng frontend không bao giờ đọc tới. Đã thêm nhánh dự phòng `category`. ⚠ Đây là **đổi hành vi**: site nào từng đặt No Index / Canonical cho danh mục thì từ nay thiết lập đó bắt đầu có hiệu lực thật.
 
 ## Lịch sử thay đổi đáng nhớ
+
+- **2026-09 — chặn lập chỉ mục toàn website**: công tắc `seo_noindex` ở đầu tab Cấu hình > Seo, dành cho site demo / site đang dựng chạy trên tên miền thật. Bật lên thì chặn ở ba lớp: meta robots (`seo_render` priority **999**, cao hơn `AdminPoint::seoRender`@99 để thắng cả thiết lập tay), header `X-Robots-Tag` (gửi ngay ở `bootstrap/noindex.php` — phủ cả `sitemap.xml` / `llms.txt` là những thứ không có thẻ head), và `robots.txt` trả `Disallow: /` qua filter `skd_seo_robots_content`.
+  - Đánh đổi đã cân nhắc: lớp robots.txt cắt luôn việc thu thập nên crawler không đọc được thẻ noindex — URL bị site khác trỏ tới vẫn có thể lọt vào kết quả tìm kiếm dạng chỉ có link. Chấp nhận được với site demo; site thật muốn **gỡ** khỏi index thì phải dùng No Index từng trang (metabox Seo) để crawler vào đọc được thẻ.
+  - `bootstrap/noindex.php` là file bootstrap mới → phải xóa cache autoload (`cmsClearCache()`) thì manifest `plugin-bootstrap-skd-seo` mới quét lại.
 
 - **2026-08 — GEO (tối ưu cho công cụ tìm kiếm AI)**: tách `LlmsService` khỏi `SeoController`, đổ bài viết + sản phẩm vào `llms.txt` (nhóm `post` trước đó luôn rỗng), thêm `/llms-full.txt`; `RobotsService` với khối chặn 16 crawler AI + chú thích trỏ `llms.txt`; `Organization`/`LocalBusiness` có `sameAs` + `@id` + `address`; thêm `BreadcrumbList` JSON-LD; OG `article:published_time`/`article:modified_time` và `og:type=article` cho trang bài viết; khối cấu hình "Công cụ tìm kiếm AI".
   - `Schema::breadcrumb()` **không dùng `ThemeBreadcrumb::instance()`** mà tự gọi lại đúng 2 filter `theme_breadcrumb_*_data`: head render trước body, đụng vào singleton sẽ chốt dữ liệu cho breadcrumb hiển thị bên dưới.
