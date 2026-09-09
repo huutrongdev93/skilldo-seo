@@ -4,6 +4,7 @@ namespace SkdSeo\Services;
 use Ecommerce\Models\Brands;
 use Ecommerce\Models\Product;
 use RatingStar\Models\RatingStar;
+use SkillDo\Cms\Models\User;
 use SkillDo\Cms\Support\Cms;
 use SkillDo\Cms\Support\Image;
 use SkillDo\Cms\Support\Option;
@@ -14,6 +15,11 @@ use Illuminate\Support\Str;
 Class Schema {
 
     public string $website = 'http://schema.org/';
+
+    /**
+     * Tên tác giả đã tra, theo id người dùng — trang chi tiết chỉ tra một lần.
+     */
+    protected static array $authorMemo = [];
 
     public mixed $schemas  = [];
 
@@ -66,7 +72,8 @@ Class Schema {
                 "@type" => "SearchAction",
                 "target" => [
                     "@type"         => "EntryPoint",
-                    "urlTemplate"   => Url::base()."/search?keyword={search_term_string}&type=products"
+                    //Url::base() đã có sẵn dấu gạch chéo cuối — nối thêm '/search' nữa ra '//search'.
+                    "urlTemplate"   => Url::base('search?keyword={search_term_string}&type=products')
                 ],
                 "query-input" => "required name=search_term_string"
             ],
@@ -361,27 +368,84 @@ Class Schema {
         return Str::clear((string)(Option::get('general_label') ?: Option::get('general_title', '')));
     }
 
+    /**
+     * Khối `author` của bài viết.
+     *
+     * Trước đây khai cứng một Person tên "Quản trị" cho mọi bài. Đó là một con
+     * người không tồn tại, không có trang tác giả nào trỏ tới — đúng thứ Google
+     * xếp vào tín hiệu E-E-A-T rỗng. Ở đây lấy người đã tạo bài; không tra được
+     * (bài nhập từ nơi khác, tài khoản đã xoá) thì khai chính tổ chức chủ site,
+     * vì đó mới là bên thật sự chịu trách nhiệm nội dung.
+     *
+     * Filter `schema_author_name` giữ nguyên chữ ký cũ nên site nào đang ghi đè
+     * tên tác giả vẫn chạy y như trước.
+     *
+     * Trả MẢNG RỖNG khi không có tên nào — site chưa điền tên thương hiệu. Khai
+     * `"name": ""` thì Search Console vẫn báo lỗi y như thiếu trường, nhưng nhìn
+     * vào mã lại tưởng đã khai đủ.
+     */
+    protected function author($item): array
+    {
+        $name = '';
+
+        $userId = (int)($item->user_created ?? 0);
+
+        if($userId > 0)
+        {
+            if(!array_key_exists($userId, static::$authorMemo))
+            {
+                $user = User::query()->find($userId);
+
+                static::$authorMemo[$userId] = ($user)
+                    ? trim(((string)$user->firstname).' '.((string)$user->lastname))
+                    : '';
+            }
+
+            $name = static::$authorMemo[$userId];
+        }
+
+        $isPerson = ($name !== '');
+
+        if(!$isPerson) $name = $this->publisherName();
+
+        $name = Str::clear((string)apply_filters('schema_author_name', $name, $item));
+
+        if($name === '') return [];
+
+        return [
+            "@type" => $isPerson ? "Person" : "Organization",
+            "name"  => $name,
+        ];
+    }
+
+    /**
+     * Trang chi tiết bài viết.
+     *
+     * `BlogPosting` chứ không phải `NewsArticle`. NewsArticle dành cho tin tức
+     * do một toà soạn xuất bản, và Google đòi thêm điều kiện riêng cho loại đó
+     * (thuộc Google News, có tổ chức xuất bản thật). Blog hay cẩm nang của một
+     * doanh nghiệp khai NewsArticle thì Search Console báo thiếu trường bắt buộc
+     * mà chẳng đổi lại được gì. BlogPosting là con của Article, đúng bản chất và
+     * đủ điều kiện cho mọi kết quả nâng cao mà nội dung dạng bài được hưởng.
+     *
+     * Site nào thật sự là báo thì đổi lại bằng filter `schema_article_type`.
+     */
     public function post($item): static
     {
         if (hasItems($item)) {
             $schema = [
                 "@context" => $this->website,
-                "@type" => "NewsArticle",
+                "@type" => apply_filters('schema_article_type', 'BlogPosting', $item),
                 "mainEntityOfPage" => Url::current(),
                 "headline" => $this->title,
                 "datePublished" => date(DATE_ATOM, strtotime($item->created)),
                 //Ngày sửa thật của bài, không phải thời điểm khách mở trang
                 "dateModified" => date(DATE_ATOM, strtotime(!empty($item->updated) ? $item->updated : $item->created)),
                 "inLanguage" => \SkillDo\Cms\Support\Language::current(),
+                //Không khai height/width: hai số 700x400 trước đây là bịa, ảnh thật kích thước bất kỳ.
                 "image" => array(
                     "@type" => "ImageObject",
                     "url" => $this->image,
-                    "height" => 400,
-                    "width" => 700
-                ),
-                "author" => array(
-                    "@type" => "Person",
-                    "name" => apply_filters('schema_author_name', 'Quản trị', $item),
                 ),
                 "publisher" => array(
                     "@type" => "Organization",
@@ -389,11 +453,13 @@ Class Schema {
                     "logo" => array(
                         "@type" => "ImageObject",
                         "url" => Url::base(Image::source(Option::get('logo_header'))->link()),
-                        "height" => 260,
-                        "width" => 100
                     ),
                 ),
             ];
+
+            $author = $this->author($item);
+
+            if(!empty($author)) $schema['author'] = $author;
 
             /*
             | Thẻ của bài viết chính là chủ đề bài viết — khai báo vào keywords
@@ -428,6 +494,40 @@ Class Schema {
             return $this;
         }
 
+        $this->schemas[] = $this->collectionPage();
+
+        return $this;
+    }
+
+    /**
+     * Trang lưu trữ theo danh mục bài viết.
+     *
+     * Dùng chung khuôn với trang thẻ. Trước đây hàm này khai `NewsArticle` —
+     * cùng một lỗi mà ghi chú trên `tag()` đã mô tả, chỉ khác là chưa ai sửa:
+     * một trang danh mục không có tác giả, không có ngày xuất bản của riêng nó,
+     * và headline của nó là tên danh mục chứ không phải tiêu đề bài báo. Search
+     * Console vì thế báo thiếu trường bắt buộc trên mọi trang danh mục.
+     */
+    public function category($item): static
+    {
+        if(noItems($item))
+        {
+            return $this;
+        }
+
+        $this->schemas[] = $this->collectionPage();
+
+        return $this;
+    }
+
+    /**
+     * Khuôn `CollectionPage` cho mọi trang lưu trữ (danh mục, thẻ).
+     *
+     * Danh sách bài đang hiển thị nằm ở data-bag `objects`, do controller của
+     * trang lưu trữ đặt. Không có thì chỉ khai trang, bỏ `mainEntity`.
+     */
+    protected function collectionPage(): array
+    {
         $schema = [
             "@context"      => $this->website,
             "@type"         => "CollectionPage",
@@ -474,49 +574,7 @@ Class Schema {
             }
         }
 
-        $this->schemas[] = $schema;
-
-        return $this;
-    }
-
-    public function category($item): static
-    {
-        if (hasItems($item))
-        {
-            $schema = [
-                "@context" => $this->website,
-                "@type" => "NewsArticle",
-                "mainEntityOfPage" => Url::current(),
-                "headline" => $this->title,
-                "datePublished" => date(DATE_ATOM, strtotime($item->created)),
-                "dateModified" => date(DATE_ATOM, strtotime(!empty($item->updated) ? $item->updated : $item->created)),
-                "inLanguage" => \SkillDo\Cms\Support\Language::current(),
-                "image" => array(
-                    "@type" => "ImageObject",
-                    "url" => $this->image,
-                    "height" => 400,
-                    "width" => 700
-                ),
-                "author" => array(
-                    "@type" => "Person",
-                    "name" => apply_filters('schema_author_name', 'Quản trị', $item),
-                ),
-                "publisher" => array(
-                    "@type" => "Organization",
-                    "name" => $this->publisherName(),
-                    "logo" => array(
-                        "@type" => "ImageObject",
-                        "url" => Url::base(Image::source(Option::get('logo_header'))->link()),
-                        "height" => 260,
-                        "width" => 100
-                    ),
-                ),
-            ];
-
-            $this->schemas[] = $schema;
-        }
-
-        return $this;
+        return $schema;
     }
 
     public function render(): void

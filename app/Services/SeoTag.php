@@ -130,15 +130,10 @@ class SeoTag
         }
 
         /*
-        | Trang 2 trở đi phải có tiêu đề khác trang 1, nếu không toàn bộ trang
-        | phân trang của một thẻ sẽ trùng title với nhau.
+        | Hậu tố " - Trang N" KHÔNG còn ở đây. `SkdSeo::header()` đã cộng cho mọi
+        | loại trang phân trang ngay sau filter này; để lại thì trang thẻ bị cộng
+        | hai lần thành "... - Trang 2 - Trang 2".
         */
-        $paged = (int)request()->input('page');
-
-        if($paged > 1)
-        {
-            $headService->setTitle($headService->title.' - Trang '.$paged);
-        }
 
         return $headService;
     }
@@ -200,7 +195,7 @@ class SeoTag
      * Tên các thẻ của một bài viết.
      *
      * Nhớ lại kết quả trong request: cùng một trang chi tiết bài viết vừa cần
-     * cho meta `article:tag` vừa cần cho `keywords` của schema NewsArticle.
+     * cho meta `article:tag` vừa cần cho `keywords` của schema BlogPosting.
      */
     static function postTagNames(int $postId): array
     {

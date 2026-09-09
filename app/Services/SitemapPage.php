@@ -9,7 +9,7 @@ class SitemapPage
 {
     static function register($listSiteMap)
     {
-        $listSiteMap['page'] = ['date' => DATE_ATOM];
+        $listSiteMap['page'] = ['date' => SitemapService::maxDate(Page::query())];
 
         return $listSiteMap;
     }
@@ -18,18 +18,19 @@ class SitemapPage
     {
         $object = Page::all();
 
-        $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
+        $sitemap->openUrlset();
 
-        $sitemap->itemHome(DATE_ATOM, 'daily', 1.0);
+        //Trang chu doi theo noi dung cua no; moc dung nhat la lan sua trang gan nhat.
+        $sitemap->itemHome(SitemapService::maxDate(Page::query()), 'daily', 1.0);
 
         foreach ($object as $item)
         {
             //Slug theo tung ngon ngu (CMS 8.2.0): moi ngon ngu mot slug rieng,
             //ngon ngu chua dich thi Url::localizedSlugs() lui ve slug mac dinh.
-            $sitemap->itemUrl(Url::localizedSlugs($item), DATE_ATOM, 'weekly', 0.5);
+            $sitemap->itemUrl(Url::localizedSlugs($item), SitemapService::itemDate($item), 'weekly', 0.5, SitemapService::itemImages($item));
         }
 
-        $sitemap->setXml('</urlset>');
+        $sitemap->closeUrlset();
 
         return $sitemap;
     }

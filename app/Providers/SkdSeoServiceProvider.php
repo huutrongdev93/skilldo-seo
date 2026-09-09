@@ -63,6 +63,19 @@ class SkdSeoServiceProvider extends ServiceProvider
                 }
 
                 app('config')->set('security-headers.content_security_policy', $content_security_policy);
+
+                /*
+                | Cùng danh sách tên miền đó dùng luôn cho `preconnect`.
+                |
+                | Mã analytics/chat do quản trị dán vào thường nằm cuối chuỗi tải:
+                | trình duyệt chỉ biết tới tên miền của chúng khi đã parse tới thẻ
+                | script, rồi mới bắt đầu DNS + TCP + TLS. Báo trước ở <head> cắt
+                | được cả ba bước đó khỏi đường găng.
+                |
+                | Lấy từ chính ô script nên không phải khai cứng tên miền nào —
+                | site không dán gì thì không có thẻ preconnect nào.
+                */
+                app('config')->set('skd-seo::preconnect', array_values(array_unique($domains)));
             }
         }
         else

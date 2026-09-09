@@ -24,22 +24,22 @@ File này giúp agent hiểu ngay cấu trúc plugin mà không cần scan lại
 1. `new HeadService()` — giá trị mặc định từ option `general_title|description|keyword`, `logo_header`.
 2. Lấy title/description/keyword/image của trang: `Theme::isMethod('index')` → `Cms::getData('category')`; `Theme::isMethod('detail')` → `Cms::getData('object')`.
 3. **`apply_filters('seo_head_base', $headService, $page)`** — nơi plugin/loại trang khác ghi đè nội dung cơ bản (`SeoTravel::headBase`, `SeoTag::headBase`).
-4. Tự thêm OpenGraph, Twitter card, `fb:app_id`, geo, author, `google-site-verification`, `hreflang` (khi đa ngữ), `canonical = request()->url()`.
+4. Cộng hậu tố `' - Trang N'` vào title khi đang ở trang phân trang thứ 2 trở đi (`SkdSeo::pagedNumber()`). Rồi tự thêm OpenGraph, Twitter card, `fb:app_id`, geo, author, `google-site-verification`, `hreflang` (khi đa ngữ), `preconnect` tới tên miền bên thứ ba (`SkdSeo::preconnectDomains()`, tối đa 4), và `canonical = SkdSeo::canonicalUrl()`.
 5. **`apply_filters('seo_render', $headService, $page)`** — nơi ghi đè robots / canonical / thêm meta. `AdminPoint::seoRender` chạy ở **priority 99** (thiết lập tay của biên tập viên phải thắng), `SeoTag::render` ở 20.
 6. `$headService->render()` — echo `<title>`, các `<meta>`, các `addCode()`, rồi gọi `Schema::render()`.
 
-`Schema::render()`: luôn có `WebSite` + `Organization`; `is_home()` → `LocalBusiness` (nếu bật); `products_detail` → `Product`; `post_index` → `tag()` nếu có data-bag `tag`, ngược lại `category()`; `post_detail` → `NewsArticle`; cuối cùng **`apply_filters('schema_render', $schemas, $page)`**.
+`Schema::render()`: luôn có `WebSite` + `Organization`; `is_home()` → `LocalBusiness` (nếu bật); `products_detail` → `Product`; `post_index` → `tag()` nếu có data-bag `tag`, ngược lại `category()` — **cả hai đều ra `CollectionPage`**; `post_detail` → `BlogPosting`; cuối cùng **`apply_filters('schema_render', $schemas, $page)`**.
 
 > `HeadService::addMeta()` **dedupe theo `name`** — meta có tên (description, keywords, robots…) gọi nhiều lần chỉ ra một thẻ, lần sau ghi đè lần trước. Meta không tên (og:*, twitter: qua `addProperty`) thì nối thêm.
 
 ### 2. Sitemap / robots / llms
 
-`routes/web.php` khai 3 route → `SeoController`. `SetLanguage::exclude()` trong provider loại 3 đường dẫn này khỏi middleware ngôn ngữ.
+`routes/web.php` khai 4 route → `SeoController`, bọc trong `Route::withoutMiddleware([StartSession, VerifyCsrfToken])->group(...)` để lượt bot không tạo file phiên và không nhận cookie. `SetLanguage::exclude()` trong provider loại các đường dẫn này khỏi middleware ngôn ngữ.
 
 `SitemapService::sitemap()`:
-- Không có `?p` → trang index, lấy danh sách từ **`apply_filters('seo_sitemap_list', [])`** (mỗi entry `['date' => DATE_ATOM]`).
+- Không có `?p` → trang index, lấy danh sách từ **`apply_filters('seo_sitemap_list', [])`**. Mỗi entry: `['date' => <ngày sửa gần nhất của nhóm>, 'pages' => [1 => <ngày>, 2 => <ngày>, ...]]` — `date` dựng bằng `SitemapService::maxDate($query)`, `pages` bằng `SitemapService::pageDates($query, $limit)`. Có **nhiều hơn một** phần tử `pages` thì index khai thẳng `?p={key}-1`, `?p={key}-2`…; ngược lại giữ nguyên `?p={key}`. Entry chỉ có `date` (plugin viết trước 8.2.2) vẫn chạy y như cũ.
 - Có `?p={key}` → gọi **`apply_filters('seo_sitemap_{key}_xml', $sitemap, $type, $number, $request)`** (dấu `-` trong key đổi thành `_`).
-- `?p={key}-{n}` → `{n}` tách ra thành tham số `$number` (phân trang, quy ước 200 mục/trang).
+- `?p={key}-{n}` → `{n}` tách ra thành tham số `$number` (phân trang, quy ước 200 mục/trang). Gọi `?p={key}` không kèm số vẫn trả trang 1 — đường dẫn cũ Google đã lưu không thành 404.
 - `SitemapService::itemUrl()` **tự thêm tiền tố ngôn ngữ** cho site đa ngữ → truyền slug thô vào, đừng đi qua `Url::permalink()`/`Url::tag()` nữa kẻo prefix hai lần.
 
 `llms.txt` / `llms-full.txt`: `LlmsService::build()` dựng `LlmsContent` (trang, danh mục, bài viết, sản phẩm, thẻ) rồi **`apply_filters('skd_seo_llms_content', $llms)`**; `LlmsService::full()` dựng bản toàn văn (bóc thẻ HTML) qua **`skd_seo_llms_full`**. Group rỗng không render. Số mục mỗi nhóm lấy từ option `seo_llms[limit]`, bản toàn văn còn bị chặn thêm ở `LIMIT_FULL`.
@@ -69,8 +69,8 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | File | Chức năng |
 |---|---|
 | `plugin.json` | Manifest: version, provider, PSR-4 `SkdSeo\Modules`, đăng ký middleware `RedirectIfMatched` vào nhóm `web` |
-| `skd-seo.php` | Hằng + class `SkdSeo`: `active()/uninstall()`, `bodyTags()`, `buildAlternateLinks()` (hreflang), **`header()`** (toàn bộ meta head), và block đăng ký hook cuối file (admin: menu Marketing; frontend: breadcrumb schema + `cle_header` + các sitemap page/post/post-category/product/product-category) |
-| `routes/web.php` | `/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/llms-full.txt` → `SeoController`. Cả 4 phải có trong `SetLanguage::exclude()` của provider |
+| `skd-seo.php` | Hằng + class `SkdSeo`: `active()/uninstall()`, `bodyTags()`, `buildAlternateLinks()` (hreflang), `pagedNumber()` + `canonicalUrl()` (phân trang + gạch chéo cuối ở trang chủ), `preconnectDomains()`, **`header()`** (toàn bộ meta head), và block đăng ký hook cuối file (admin: menu Marketing; frontend: breadcrumb schema + `cle_header` + các sitemap page/post/post-category/product/product-category) |
+| `routes/web.php` | `/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/llms-full.txt` → `SeoController`, trong nhóm `withoutMiddleware([StartSession, VerifyCsrfToken])`. Cả 4 phải có trong `SetLanguage::exclude()` của provider. **Phải dùng dạng `Route::withoutMiddleware()->group()`** — `SkillDo\Routing\Route` không có method `withoutMiddleware()`, gọi trên từng route là lỗi nghiêm trọng lúc nạp |
 | `database/database.php` | Migration cài đặt: tạo bảng `redirect` + `log404`. **Chỉ file này được chạy** (gọi từ `SkdSeo::active()/uninstall()`) |
 | `database/db_v3.1.0.php`, `db_v3.3.2.php`, `db_v4.0.0.php` | Migration theo phiên bản của cơ chế cũ — **không còn được chạy**, giữ để tham khảo |
 | `config/log404.php` | Default `enabled / redirect / link`, merge với option `seo_404` trong provider (`skd-seo::log404.*`) |
@@ -95,12 +95,12 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | File | Chức năng |
 |---|---|
 | `HeadService.php` | Đối tượng thu thập head: `setTitle/Description/Keyword/Image`, `addMeta` (dedupe theo name), `addProperty` (og:*), `addItemprop`, `addCode` (thẻ `<link>` thô), `render()`. Giữ sẵn một `Schema` |
-| `Schema.php` | Sinh JSON-LD: `website()` (WebSite + Organization, có `sameAs`/`@id`), `home()` (LocalBusiness), `product()` (gộp rating từ plugin rating-star), `post()` (NewsArticle + `keywords` từ thẻ), `tag()` (CollectionPage + ItemList), `category()`, `breadcrumb()` (BreadcrumbList), `render()`. Helper tĩnh dùng chung: `sameAs()`, `country()` |
+| `Schema.php` | Sinh JSON-LD: `website()` (WebSite + Organization, có `sameAs`/`@id`), `home()` (LocalBusiness), `product()` (gộp rating từ plugin rating-star), `post()` (**BlogPosting** + `keywords` từ thẻ + `author()`), `tag()` và `category()` (đều gọi `collectionPage()`: CollectionPage + ItemList), `breadcrumb()` (BreadcrumbList), `render()`. Helper dùng chung: `sameAs()`, `country()`, `publisherName()`, `author()` |
 | `RobotsService.php` | Nội dung `robots.txt` + danh sách 16 crawler AI (`aiAgents()`), cờ cho phép/chặn (`allowAi()`) |
 | `Llms/LlmsService.php` | Dựng `llms.txt` (`build()`) và `llms-full.txt` (`full()`), đọc cấu hình option `seo_llms` |
 | `NoIndexService.php` | Chặn lập chỉ mục toàn site: meta robots (`seo_render` @999), header `X-Robots-Tag`, và `robots.txt` = `Disallow: /` |
 | `ScriptService.php` | Echo `header_script` / `footer_script`. (`body_script` do **theme** render, không phải plugin) |
-| `SitemapService.php` | Bộ dựng XML: `item()` (sitemap index), `itemHome()`, `itemUrl()` — tất cả tự nhân bản theo ngôn ngữ khi đa ngữ |
+| `SitemapService.php` | Bộ dựng XML: `openUrlset()`/`closeUrlset()` (thẻ gốc dùng chung, đã khai đủ `xmlns:xhtml` + `xmlns:image`), `item()` (một mục của sitemap index — **chỉ `<loc>` + `<lastmod>`, không nhân bản theo ngôn ngữ**), `itemHome()` và `itemUrl($url, $date, $change, $priority, $images)` (nhân bản theo ngôn ngữ khi đa ngữ, kèm `<image:image>`). Ảnh lấy bằng `itemImages($item)` từ cột `image`. Ngày tháng đi qua `lastmod()` (nhận timestamp / chuỗi ngày / `DateTimeInterface`, **trả rỗng nếu không phải ngày thật**), lấy bằng `maxDate($query)` cho cả nhóm, `pageDates($query, $limit)` cho từng trang của nhóm phân trang, `itemDate($item)` cho từng bản ghi |
 | `Sitemap{Page,Post,PostCategory,Product,ProductCategory}.php` | Từng nguồn dữ liệu. `Post`/`Product` có phân trang 200/trang; `Product*` chỉ đăng ký khi có alias `Product`/`ProductCategory` |
 | `SitemapTag.php` | Thẻ — chỉ thẻ `count > 0`, url ghép từ `cms.tag.prefix`, bật/tắt bằng option `seo_tag[sitemap]` |
 | `Sitemap{Tour,TourCategory,TourArchive}.php` | Plugin travel, đều có `support()` kiểm tra `class_exists` |
@@ -178,12 +178,16 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 | `seo_noindex_directive` | filter | `$directive` | Đổi chỉ thị robots khi bật chặn lập chỉ mục (mặc định `noindex, nofollow, noarchive`) |
 | `skd_seo_robots_content` | filter | `$text` | Can thiệp nội dung `robots.txt` |
 | `skd_seo_ai_agents` | filter | `$agents` | Thêm/bớt crawler AI trong danh sách chặn |
-| `schema_same_as`, `schema_country`, `schema_author_name` | filter | giá trị | Ghi đè `sameAs` / mã quốc gia / tác giả bài viết |
+| `seo_sitemap_item_images` | filter | `$images, $item` | Thêm/bớt ảnh khai trong sitemap của một bản ghi (mặc định: một ảnh từ cột `image`) |
+| `seo_preconnect_domains` | filter | `$domains` | Sửa danh sách tên miền `preconnect` (provider dựng từ ô script; header chỉ in 4 cái đầu) |
+| `schema_same_as`, `schema_country`, `schema_author_name` | filter | giá trị | Ghi đè `sameAs` / mã quốc gia / tên tác giả bài viết |
+| `schema_article_type` | filter | `$type, $item` | Đổi kiểu schema trang bài viết (mặc định `BlogPosting`; site là báo thật thì đổi `NewsArticle`) |
 | `seo_point_support_module` | filter | `$modules` | Thêm module vào danh sách chọn ở Cấu hình |
 | `seo_point_admin_module_enable` | filter | `$modules` | Khai class đọc/ghi metadata seo của module |
 | `seo_point_object` | filter | `$object, $page` | Ánh xạ đối tượng đang hiển thị cho trang không dùng data-bag `object` |
 | `seo_point_criteria` | filter | `$criteria, $module` | Rút gọn bộ tiêu chí chấm điểm của một module |
 | `seo_schema`, `seo_robots`, `seo_canonical` | filter | `$value, $object` | Can thiệp giá trị thủ công trước khi xuất |
+| `seo_canonical_url` | filter | `$url, $paged` | Ghi đè URL canonical đã dựng sẵn (mặc định: URL hiện tại + tham số phân trang nếu có) |
 | `seo_tag_description_default`, `seo_tag_robots_thin` | filter | `$value, $tag` | Tùy biến mô tả mặc định / robots của thẻ mỏng |
 
 ## Quy tắc khi sửa plugin này
@@ -192,7 +196,7 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 2. **Hỗ trợ một loại nội dung mới = 1 file `Services/Seo{X}.php` + 1 file `bootstrap/{x}.php`**, theo đúng mẫu `SeoTravel` / `SeoTag`: hook đăng ký vô điều kiện, `support()` kiểm tra `class_exists` **bên trong** callback (bootstrap các plugin chạy theo thứ tự nạp, class có thể chưa tồn tại lúc đăng ký).
 3. **Thêm module chấm điểm** = class 8 getter/setter + `schemaRender`/`seoRender`, khai qua `seo_point_admin_module_enable` **và** `seo_point_support_module`, rồi ánh xạ đối tượng qua `seo_point_object` nếu trang không dùng `Cms::getData('object')`.
 4. **Trang dùng chung `$page` phải kiểm tra kiểu đối tượng** trong `seoRender`/`schemaRender` — vòng lặp module dừng ở kết quả đầu tiên, module "trùng trang" sẽ nuốt mất module sau và đọc nhầm bảng metadata.
-5. **Sitemap**: dùng slug thô trong `itemUrl()`; muốn phân trang thì theo mẫu `SitemapPost` (`?p={key}-{n}`, 200 mục/trang).
+5. **Sitemap**: mở thẻ gốc bằng `openUrlset()`/`closeUrlset()`, đừng viết lại chuỗi `<urlset>` — thiếu một namespace là file đó hỏng mà các file khác vẫn chạy. Truyền ảnh qua tham số thứ năm của `itemUrl()`. Dùng slug thô trong `itemUrl()`; muốn phân trang thì theo mẫu `SitemapPost` — khai `LIMIT`, gom điều kiện **và thứ tự sắp xếp** vào một `query()` dùng chung, `register()` trả thêm khoá `pages`, `sitemap()` chỉ dựng đúng một trang. **Đừng tự dựng `<sitemapindex>` bên trong một sitemap con**: chuẩn sitemap không cho lồng index, Google sẽ dừng ở tầng hai. Tham số ngày phải là **ngày sửa thật** (`SitemapService::itemDate($item)` / `maxDate($query)`) — **đừng truyền `DATE_ATOM`**, đó là chuỗi định dạng và từng làm mọi `lastmod` bằng giờ hiện tại. Truyền `null` khi không biết: `lastmod()` bỏ hẳn thẻ, tốt hơn là khai sai.
 6. Nhớ 2 lớp cache: `seo_redirect_{md5(path)}` (chuyển hướng) và cache của core (`tag_*`, `product_detail_*`…) — sửa dữ liệu nguồn thì xóa đúng key.
 7. `HeadService::addMeta` dedupe theo `name` — muốn nhiều thẻ cùng loại (og:*, article:tag) phải dùng `addProperty`.
 8. Đổi giao diện metabox point: `views/point/point.blade.php` nhận `$criteria` từ `AdminPoint::metaBox` và JS chia điểm theo `criteriaKeys.length` — thêm tiêu chí mới phải khai cả ở `SeoPoint::listCriteria()` lẫn nhánh cộng điểm `seoPointAdd('key')`.
@@ -203,7 +207,7 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - `Log404::handle()` đọc cấu hình bằng key `plugin.skd-seo.log404.*` (sai định dạng — đúng là `skd-seo::log404.*`) nên luôn nhận giá trị mặc định.
 - `RedirectIfMatched` **bỏ qua cột `redirect` (bật/tắt từng dòng)** và chỉ chạy khi `skd-seo::log404.redirect` khác rỗng → module Chuyển Hướng đang phụ thuộc vào cấu hình của mục 404.
 - `Modules/Log404/Form.php`: rule unique trỏ bảng `redirect` (đáng lẽ `log404`) và dùng key `handlerValue` trong khi `Unique` đọc `handleValue` → closure chuẩn hóa path bị bỏ qua. Ít ảnh hưởng vì `AdminLog404::render()` không có nhánh `add` — form này gần như không tới được.
-- `SitemapProductCategory::sitemap()` khai thêm `itemUrl('/')` trong khi `SitemapPage` đã có `itemHome()` → trang chủ xuất hiện 2 lần trong sitemap.
+- `SitemapProductCategory::sitemap()` khai thêm mục trang chủ trong khi `SitemapPage` đã có `itemHome()` → trang chủ xuất hiện 2 lần trong sitemap. (Slug đã đổi từ `'/'` sang `''` — chuỗi cũ ghép sau tiền tố ngôn ngữ sinh ra `domain.com/en//`.)
 - `db_v4.0.0.php` tạo bản ghi `Router` trỏ `App\Controllers\Web\SeoController` (sai namespace, đúng là `SkdSeo\Controllers\Web`) — vô hại vì file này không còn được chạy và `routes/web.php` đã khai 3 route.
 - `SKD_SEO_VERSION` trong `skd-seo.php` (4.0.8) **lệch** `plugin.json` (5.3.0) và không được đọc ở đâu — nguồn phiên bản thật là `plugin.json`. (`SKD_SEO_PATH` thì có dùng, trong `SitemapService`.)
 - `SeoPoint::registerMetabox()` `foreach` thẳng `Option::get('seo_point_support')` — option chưa từng lưu (null) sẽ sinh warning.
@@ -212,6 +216,26 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - Plugin khác type-hint cứng `\SkdSeo\Services\HeadService` trong filter `seo_render` (vd `Ecommerce\Controllers\Web\EcommerceController`) → tắt skd-seo sẽ lỗi. Khi đổi chữ ký `HeadService` phải rà các plugin đó.
 
 ## Bug đã sửa
+
+- **Thiếu `preconnect` cho tên miền bên thứ ba**: provider vốn đã quét URL trong `header_script`/`body_script`/`footer_script` để nới CSP, nhưng danh sách đó bỏ đi không dùng lại. Nay lưu vào config `skd-seo::preconnect` và `header()` in ra thẻ `preconnect`, **tối đa 4** — mỗi thẻ mở sẵn một kết nối TCP+TLS, khai chục cái thì chia nhỏ băng thông của chính việc dựng trang. Site không dán script nào thì không có thẻ nào.
+- **Canonical trang chủ thiếu dấu gạch chéo cuối**: `request()->url()` của Illuminate cắt gạch chéo cuối nên trang chủ khai `https://site.com` trong khi URL thật là `https://site.com/`. Google tự chuẩn hoá nên không nặng, nhưng công cụ soi SEO nào cũng báo. `canonicalUrl()` nay bắt riêng trường hợp đường dẫn rỗng.
+- **`urlTemplate` của `SearchAction` có gạch chéo kép**: `Url::base()` đã kết thúc bằng `/` mà còn nối thêm `'/search'`. Đã đổi sang `Url::base('search?...')`.
+
+- **Chưa có sitemap ảnh**: không nơi nào khai `image:image`, trong khi du lịch và thương mại điện tử sống nhiều bằng lưu lượng từ Google Images. Đã thêm `xmlns:image` vào thẻ gốc (gom về `SitemapService::URLSET_OPEN` để chín file nguồn không còn lặp lại chuỗi đó), tham số `$images` cho `itemUrl()`, và `itemImages($item)` đọc cột `image`. URL ảnh được thoát ký tự — một dấu `&` trần trong tên file là đủ làm hỏng cả sitemap.
+- **Mỗi lượt bot vào `sitemap.xml` tạo một file phiên trên đĩa**: bốn endpoint văn bản công khai đi qua đủ middleware nhóm `web`, nên vừa ghi file phiên vừa trả về `Set-Cookie` — mà `Set-Cookie` thì CDN bỏ qua cache. Đã bọc chúng trong `Route::withoutMiddleware([StartSession, VerifyCsrfToken])`. **Chỉ vậy chưa đủ**: `VerifyCsrfToken::__construct()` gọi `ensureTokenExists()` nên chạm session ngay khi middleware được khởi tạo (đã gỡ, `getToken()` vốn đã tự gọi), và nhiều `bootstrap/*.php` của plugin gọi `Admin::isRoot()` ở cấp cao nhất file — chạy trước mọi middleware. Cái sau chữa ở tầng framework: `Auth::user()` nay trả rỗng ngay khi request không mang cookie phiên, xem `Auth::hasSession()`.
+
+- **Trang phân trang tự dồn canonical về trang 1**: canonical lấy từ `request()->url()`, mà hàm đó của Illuminate cắt sạch query string — trang 2, trang 3 đều khai mình là trang 1 và mang y nguyên title của trang 1. Google gộp lại rồi bỏ qua nội dung các trang sau, nên với danh mục nhiều bài thì phần lớn bài không được thu thập qua đường phân trang. Đã thêm `SkdSeo::canonicalUrl()` (giữ lại `?page=`/`?paging=`, vẫn cắt UTM và tham số lọc) và `SkdSeo::pagedNumber()`. Hậu tố `' - Trang N'` chuyển từ `SeoTag::headBase()` lên `header()` để áp cho mọi loại trang — để nguyên ở cả hai chỗ thì trang thẻ bị cộng hai lần.
+  - `pagedNumber()` ép `(int)` là có chủ ý: khu vực tài khoản dùng lại đúng tên `?page=` nhưng để mang **slug** mục con (`?page=don-hang`), ép ra 0 nên không bị nhầm thành số trang.
+
+- **Sitemap index hỏng XML trên site đa ngôn ngữ**: `SitemapService::item()` có nhánh riêng cho đa ngữ, in ra `<url>` kèm `<xhtml:link>` **bên trong `<sitemapindex>`** — cả hai đều sai chỗ, và tiền tố `xhtml` chưa hề được khai ở thẻ gốc, nên cả file không parse được và Google bỏ nguyên sitemap. Đường dẫn còn bị chèn tiền tố ngôn ngữ thành `/en/sitemap.xml?p=page` trong khi `SetLanguage::exclude()` đã loại `sitemap.xml` khỏi middleware ngôn ngữ. Đã bỏ hẳn nhánh đó: mục của index luôn là `<sitemap>` với `<loc>` + `<lastmod>`. Bản dịch vẫn khai đủ trong từng sitemap con (`itemUrl`), nơi `<urlset>` có khai `xmlns:xhtml`.
+- **Sitemap index lồng trong sitemap index**: nhóm vượt 200 mục thì `?p=post` trả về một `<sitemapindex>` nữa, trong khi bản thân nó đã được index gốc trỏ tới như một sitemap con. Chuẩn sitemap không cho phép lồng index nên Google dừng ở tầng hai, toàn bộ bài từ trang 1 trở đi không bao giờ được đọc. Đã đổi hợp đồng `seo_sitemap_list`: `register()` trả thêm khoá `pages` và index gốc khai thẳng `?p={key}-{n}`. Bốn service có phân trang (`SitemapPost`, `SitemapProduct`, `SitemapTag`, `SitemapTour`) bỏ hẳn nhánh dựng index lồng.
+- **Phân trang sitemap không sắp xếp**: `SitemapPost` và `SitemapProduct` dùng `offset/limit` mà không `orderBy`, nên thứ tự do cơ sở dữ liệu tự quyết và có thể khác nhau giữa hai lần truy vấn — một bài vừa lọt hai trang sitemap vừa vắng mặt ở trang khác. Đã gom điều kiện và thứ tự vào `query()` dùng chung cho cả `register()` lẫn `sitemap()`.
+- **`SitemapProduct` đếm nhầm số trang**: nhánh đếm dùng `Product::count()` (toàn bảng) trong khi nhánh dựng danh sách lọc `type = product`, nên số trang khai ra nhiều hơn số trang thật sự có nội dung. Đã dùng chung `query()`.
+
+- **Mọi `<lastmod>` trong sitemap bằng thời điểm khách mở trang**: ba hàm dựng mục gọi `date($date)` mà mọi nơi gọi đều truyền `DATE_ATOM` — chuỗi ĐỊNH DẠNG, không phải mốc thời gian, nên `date()` lấy giờ hiện tại. Toàn bộ sitemap khai "vừa cập nhật" ở mỗi lần tải, và Google gặp lastmod không đáng tin thì bỏ qua lastmod của cả site. Đã thêm `SitemapService::lastmod()` (bỏ hẳn thẻ khi không phải ngày thật, nên plugin bên thứ ba truyền `DATE_ATOM` không gãy mà cũng không nói dối), `maxDate()` cho mục trong sitemap index và `itemDate()` cho từng bản ghi; 9 file `Sitemap*.php` đã chuyển sang truyền ngày thật.
+- **Trang danh mục bài viết khai schema `NewsArticle`**: `Schema::category()` dùng đúng khuôn của trang bài viết — headline là tên danh mục, `datePublished` là ngày tạo danh mục, tác giả là người bịa. Ghi chú ngay trên `tag()` trong cùng file đã giải thích chính xác vì sao không được làm vậy nhưng `category()` vẫn làm. Đã tách `collectionPage()` dùng chung cho cả hai.
+- **Bài viết khai `NewsArticle` và tác giả là "Quản trị"**: NewsArticle dành cho tin tức của toà soạn, blog doanh nghiệp khai loại đó chỉ tổ bị Search Console báo thiếu trường. Đã đổi sang `BlogPosting` (filter `schema_article_type` để site là báo thật đổi lại) và thay tên cứng bằng `author()` — tra người tạo bài từ `user_created`, không tra được thì khai chính tổ chức chủ site, không có tên nào thì **bỏ hẳn khối `author`** thay vì khai `"name": ""`.
+- **Kích thước ảnh bịa trong schema bài viết**: `image` khai cứng 700x400 và logo khai cứng 100x260 cho mọi site. Đã bỏ hai cặp số đó; `ImageObject` không bắt buộc khai kích thước.
 
 - **`llms.txt` không có một link hợp lệ nào**: `LlmsGroup::render()` nối `'] ('` — có khoảng trắng giữa `]` và `(` nên không dòng nào là link Markdown. Đã bỏ khoảng trắng.
 - **`publisher.name` của NewsArticle là tiêu đề bài viết**: `Schema::post()`/`category()` dùng `$this->title` (đã bị `setTitle` ghi đè) → mỗi bài khai một nhà xuất bản khác nhau. Đã đổi sang `publisherName()` = `general_label`.

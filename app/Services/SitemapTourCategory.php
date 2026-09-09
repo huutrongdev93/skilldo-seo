@@ -21,7 +21,7 @@ class SitemapTourCategory
     {
         if(self::support())
         {
-            $listSiteMap['tour-category'] = ['date' => DATE_ATOM];
+            $listSiteMap['tour-category'] = ['date' => SitemapService::maxDate(Category::query())];
         }
 
         return $listSiteMap;
@@ -37,7 +37,7 @@ class SitemapTourCategory
         //Global scope của model đã giới hạn public = 1 ở frontend
         $object = Category::orderBy('lft')->get();
 
-        $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
+        $sitemap->openUrlset();
 
         foreach ($object as $item)
         {
@@ -46,10 +46,10 @@ class SitemapTourCategory
                 continue;
             }
 
-            $sitemap->itemUrl(Url::permalink((string) $item->slug), DATE_ATOM, 'weekly', 0.6);
+            $sitemap->itemUrl(Url::permalink((string) $item->slug), SitemapService::itemDate($item), 'weekly', 0.6, SitemapService::itemImages($item));
         }
 
-        $sitemap->setXml('</urlset>');
+        $sitemap->closeUrlset();
 
         return $sitemap;
     }

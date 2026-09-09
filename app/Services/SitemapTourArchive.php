@@ -20,7 +20,7 @@ class SitemapTourArchive
     {
         if(self::support())
         {
-            $listSiteMap['tour-archive'] = ['date' => DATE_ATOM];
+            $listSiteMap['tour-archive'] = ['date' => SitemapService::maxDate(Archive::where('public', 1))];
         }
 
         return $listSiteMap;
@@ -37,7 +37,7 @@ class SitemapTourArchive
 
         $object = Archive::where('public', 1)->orderBy('order')->get();
 
-        $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
+        $sitemap->openUrlset();
 
         foreach ($object as $item)
         {
@@ -46,10 +46,10 @@ class SitemapTourArchive
                 continue;
             }
 
-            $sitemap->itemUrl($prefix.'/'.$item->slug, DATE_ATOM, 'weekly', 0.7);
+            $sitemap->itemUrl($prefix.'/'.$item->slug, SitemapService::itemDate($item), 'weekly', 0.7, SitemapService::itemImages($item));
         }
 
-        $sitemap->setXml('</urlset>');
+        $sitemap->closeUrlset();
 
         return $sitemap;
     }

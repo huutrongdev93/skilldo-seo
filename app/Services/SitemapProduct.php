@@ -7,59 +7,52 @@ use Ecommerce\Models\Product;
 
 class SitemapProduct
 {
+    const LIMIT = 200;
+
+    /**
+     * Truy vấn dùng CHUNG cho cả register() lẫn sitemap() — xem chú thích đầy đủ
+     * ở SitemapPost::query().
+     *
+     * Điều kiện `type = product` trước đây chỉ có ở nhánh dựng danh sách, còn
+     * chỗ đếm số trang lại đếm toàn bảng, nên số trang khai ra nhiều hơn số
+     * trang thật sự có nội dung.
+     */
+    protected static function query()
+    {
+        return Product::where('type', 'product')->orderBy('id');
+    }
+
     static function register($listSiteMap)
     {
         if(class_exists('Product')) {
-            $listSiteMap['product'] = ['date' => DATE_ATOM];
+            $listSiteMap['product'] = [
+                'date'  => SitemapService::maxDate(self::query()),
+                'pages' => SitemapService::pageDates(self::query(), self::LIMIT),
+            ];
         }
         return $listSiteMap;
     }
 
+    //Không còn sitemapindex lồng nhau — xem chú thích ở SitemapPost::sitemap().
     static function sitemap($sitemap, $type, $paging)
     {
-        $limit = 200;
+        if (empty($paging)) $paging = 1;
 
-        if (empty($paging))
+        $object = self::query()
+            ->offset(($paging - 1) * self::LIMIT)
+            ->limit(self::LIMIT)
+            ->get();
+
+        $sitemap->openUrlset();
+
+        foreach ($object as $item)
         {
-            $total = Product::count();
-
-            $pagingTotal = ceil($total / $limit);
-
-            if ($pagingTotal > 1)
-            {
-                $sitemap->setXml('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-
-                for ($page = 1; $page <= $pagingTotal; $page++)
-                {
-                    $sitemap->item('sitemap.xml?p=product-' . $page, DATE_ATOM);
-                }
-
-                $sitemap->setXml('</sitemapindex>');
-            }
-            else
-            {
-                $paging = 1;
-            }
+            //Slug theo tung ngon ngu (CMS 8.2.0): moi ngon ngu mot slug rieng,
+            //ngon ngu chua dich thi Url::localizedSlugs() lui ve slug mac dinh.
+            $sitemap->itemUrl(Url::localizedSlugs($item), SitemapService::itemDate($item), 'weekly', 1.0, SitemapService::itemImages($item));
         }
 
-        if ($paging != 0)
-        {
-            $object = Product::where('type', 'product')
-                ->offset(($paging - 1) * $limit)
-                ->limit($limit)
-                ->get();
-
-            $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
-
-            foreach ($object as $item)
-            {
-                //Slug theo tung ngon ngu (CMS 8.2.0): moi ngon ngu mot slug rieng,
-                //ngon ngu chua dich thi Url::localizedSlugs() lui ve slug mac dinh.
-                $sitemap->itemUrl(Url::localizedSlugs($item), DATE_ATOM, 'weekly', 1.0);
-            }
-
-            $sitemap->setXml('</urlset>');
-        }
+        $sitemap->closeUrlset();
 
         return $sitemap;
     }

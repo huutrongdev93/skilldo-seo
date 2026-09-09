@@ -12,6 +12,8 @@ use Travel\Models\Tour;
  */
 class SitemapTour
 {
+    const LIMIT = 200;
+
     static function support(): bool
     {
         return class_exists(Tour::class);
@@ -21,12 +23,16 @@ class SitemapTour
     {
         if(self::support())
         {
-            $listSiteMap['tour'] = ['date' => DATE_ATOM];
+            $listSiteMap['tour'] = [
+                'date'  => SitemapService::maxDate(self::query()),
+                'pages' => SitemapService::pageDates(self::query(), self::LIMIT),
+            ];
         }
 
         return $listSiteMap;
     }
 
+    //Không còn sitemapindex lồng nhau — xem chú thích ở SitemapPost::sitemap().
     static function sitemap($sitemap, $type, $paging)
     {
         if(!self::support())
@@ -34,63 +40,38 @@ class SitemapTour
             return $sitemap;
         }
 
-        $limit = 200;
+        if (empty($paging)) $paging = 1;
 
-        if (empty($paging))
+        $object = self::query()
+            ->offset(($paging - 1) * self::LIMIT)
+            ->limit(self::LIMIT)
+            ->get();
+
+        $sitemap->openUrlset();
+
+        //Trang danh sách tour tổng chỉ khai báo ở trang sitemap đầu tiên
+        if ($paging == 1)
         {
-            $total = self::query()->count();
-
-            $pagingTotal = ceil($total / $limit);
-
-            if ($pagingTotal > 1)
-            {
-                $sitemap->setXml('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-
-                for ($page = 1; $page <= $pagingTotal; $page++)
-                {
-                    $sitemap->item('sitemap.xml?p=tour-' . $page, DATE_ATOM);
-                }
-
-                $sitemap->setXml('</sitemapindex>');
-            }
-            else
-            {
-                $paging = 1;
-            }
+            $sitemap->itemUrl(config('travel::config.slug', 'tour'), SitemapService::maxDate(self::query()), 'daily', 0.9);
         }
 
-        if ($paging != 0)
+        foreach ($object as $item)
         {
-            $object = self::query()
-                ->orderBy('id', 'desc')
-                ->offset(($paging - 1) * $limit)
-                ->limit($limit)
-                ->get();
-
-            $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
-
-            //Trang danh sách tour tổng chỉ khai báo ở trang sitemap đầu tiên
-            if ($paging == 1)
-            {
-                $sitemap->itemUrl(config('travel::config.slug', 'tour'), DATE_ATOM, 'daily', 0.9);
-            }
-
-            foreach ($object as $item)
-            {
-                $sitemap->itemUrl(Url::permalink((string) $item->slug), DATE_ATOM, 'weekly', 0.8);
-            }
-
-            $sitemap->setXml('</urlset>');
+            $sitemap->itemUrl(Url::permalink((string) $item->slug), SitemapService::itemDate($item), 'weekly', 0.8, SitemapService::itemImages($item));
         }
+
+        $sitemap->closeUrlset();
 
         return $sitemap;
     }
 
     /**
      * Chỉ tour đang bán được: public (global scope), không thùng rác, đã xuất bản.
+     *
+     * Sắp xếp nằm ở đây, không ở chỗ gọi — xem chú thích ở SitemapPost::query().
      */
     protected static function query()
     {
-        return Tour::where('trash', 0)->where('status', 'public');
+        return Tour::where('trash', 0)->where('status', 'public')->orderBy('id', 'desc');
     }
 }

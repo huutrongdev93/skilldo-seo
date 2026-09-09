@@ -25,7 +25,10 @@ class SitemapTag
     {
         if(self::support())
         {
-            $listSiteMap['tag'] = ['date' => DATE_ATOM];
+            $listSiteMap['tag'] = [
+                'date'  => SitemapService::maxDate(self::query()),
+                'pages' => SitemapService::pageDates(self::query(), self::LIMIT),
+            ];
         }
 
         return $listSiteMap;
@@ -33,8 +36,9 @@ class SitemapTag
 
     static protected function query()
     {
-        //Global scope của model đã giới hạn public = 1 ở frontend
-        return Tag::where('count', '>', 0);
+        //Global scope của model đã giới hạn public = 1 ở frontend.
+        //Sắp xếp nằm ở đây, không ở chỗ gọi — xem chú thích ở SitemapPost::query().
+        return Tag::where('count', '>', 0)->orderBy('id');
     }
 
     static function sitemap($sitemap, $type = 'tag', $paging = 0)
@@ -46,55 +50,31 @@ class SitemapTag
 
         $prefix = SeoTag::prefix();
 
-        if(empty($paging))
+        //Không còn sitemapindex lồng nhau — xem chú thích ở SitemapPost::sitemap().
+        if(empty($paging)) $paging = 1;
+
+        $objects = self::query()
+            ->offset(($paging - 1) * self::LIMIT)
+            ->limit(self::LIMIT)
+            ->get();
+
+        $sitemap->openUrlset();
+
+        foreach ($objects as $item)
         {
-            $total = self::query()->count();
-
-            $pagingTotal = ceil($total / self::LIMIT);
-
-            if($pagingTotal > 1)
+            if(empty($item->slug))
             {
-                $sitemap->setXml('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-
-                for ($page = 1; $page <= $pagingTotal; $page++)
-                {
-                    $sitemap->item('sitemap.xml?p=tag-'.$page, DATE_ATOM);
-                }
-
-                $sitemap->setXml('</sitemapindex>');
+                continue;
             }
-            else
-            {
-                $paging = 1;
-            }
+
+            /*
+            | Dùng slug thô chứ không dùng Url::tag(): itemUrl() tự thêm tiền
+            | tố ngôn ngữ cho site đa ngữ, đi qua Url::tag() sẽ bị thêm hai lần.
+            */
+            $sitemap->itemUrl($prefix.'/'.$item->slug, SitemapService::itemDate($item), 'weekly', 0.4, SitemapService::itemImages($item));
         }
 
-        if($paging != 0)
-        {
-            $objects = self::query()
-                ->orderBy('id')
-                ->offset(($paging - 1) * self::LIMIT)
-                ->limit(self::LIMIT)
-                ->get();
-
-            $sitemap->setXml('<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
-
-            foreach ($objects as $item)
-            {
-                if(empty($item->slug))
-                {
-                    continue;
-                }
-
-                /*
-                | Dùng slug thô chứ không dùng Url::tag(): itemUrl() tự thêm tiền
-                | tố ngôn ngữ cho site đa ngữ, đi qua Url::tag() sẽ bị thêm hai lần.
-                */
-                $sitemap->itemUrl($prefix.'/'.$item->slug, DATE_ATOM, 'weekly', 0.4);
-            }
-
-            $sitemap->setXml('</urlset>');
-        }
+        $sitemap->closeUrlset();
 
         return $sitemap;
     }

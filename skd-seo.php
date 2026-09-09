@@ -107,6 +107,87 @@ class SkdSeo
         return $links;
     }
 
+    /**
+     * Số trang đang xem, hoặc 0 nếu đang ở trang đầu.
+     *
+     * Toàn bộ CMS phân trang bằng query string: `?page=N` là quy ước hiện hành,
+     * `?paging=N` là dạng cũ mà helper `pagination()` vẫn còn nhận.
+     *
+     * Ép sang số nguyên là có chủ ý, không phải cẩu thả: khu vực tài khoản dùng
+     * lại đúng tên `?page=` nhưng để mang SLUG mục con (`?page=don-hang`). Chuỗi
+     * đó ép ra 0 nên không bị nhầm thành số trang.
+     */
+    static function pagedNumber(): int
+    {
+        foreach (['paging', 'page'] as $key)
+        {
+            $value = (int) request()->query($key);
+
+            if($value > 1) return $value;
+        }
+
+        return 0;
+    }
+
+    /**
+     * URL canonical của trang hiện tại.
+     *
+     * `request()->url()` cắt sạch query string, nên trang 2, trang 3 đều tự khai
+     * mình là trang 1. Google gộp chúng lại và bỏ qua nội dung ở các trang sau —
+     * với danh mục nhiều bài thì phần lớn bài không bao giờ được thu thập qua
+     * đường phân trang.
+     *
+     * Trang phân trang phải canonical về CHÍNH NÓ. Các tham số khác (bộ lọc, sắp
+     * xếp, UTM) vẫn bị cắt, đó mới là thứ cần gộp.
+     */
+    static function canonicalUrl(): string
+    {
+        $url = request()->url();
+
+        /*
+        | `request()->url()` của Illuminate cắt dấu gạch chéo cuối, nên ở trang chủ
+        | nó trả `https://site.com` trong khi URL thật là `https://site.com/`.
+        | Google tự chuẩn hoá hai dạng đó nên đây không phải lỗi nặng, nhưng khai
+        | canonical khác URL thật thì mọi công cụ soi SEO đều báo, và sửa chỉ tốn
+        | một nhánh if.
+        */
+        if(trim(request()->getPathInfo(), '/') === '')
+        {
+            $url = rtrim(Url::base(), '/').'/';
+        }
+
+        $paged = static::pagedNumber();
+
+        if($paged > 1)
+        {
+            $key = ((int) request()->query('paging') > 1) ? 'paging' : 'page';
+
+            $url .= '?'.$key.'='.$paged;
+        }
+
+        return apply_filters('seo_canonical_url', $url, $paged);
+    }
+
+    /**
+     * Các tên miền đáng báo trước cho trình duyệt bằng `preconnect`.
+     *
+     * Danh sách do provider dựng từ chính ô script của quản trị (xem
+     * `SkdSeoServiceProvider`), nên không khai cứng tên miền nào.
+     *
+     * CỐ Ý GIỚI HẠN 4. Mỗi thẻ preconnect mở sẵn một kết nối TCP + TLS; khai
+     * chục cái thì băng thông và socket dành cho việc dựng trang bị chia nhỏ,
+     * trang chậm đi chứ không nhanh lên. Bốn cái đầu là nơi đáng đầu tư nhất vì
+     * script dán trước thường là thứ nạp sớm nhất.
+     */
+    static function preconnectDomains(): array
+    {
+        $domains = config('skd-seo::preconnect', []);
+
+        if(!is_array($domains) || empty($domains)) return [];
+
+        return array_slice(apply_filters('seo_preconnect_domains', $domains), 0, 4);
+    }
+
     static function header(): void
     {
         $headService = new \SkdSeo\Services\HeadService();
@@ -170,6 +251,21 @@ class SkdSeo
             ->setImage($image);
 
         $headService = apply_filters('seo_head_base', $headService, Theme::getPage());
+
+        /*
+        | Trang 2 trở đi phải có tiêu đề khác trang 1. Để nguyên thì mọi trang
+        | phân trang của cùng một danh mục dùng chung một title, Google gộp lại
+        | và coi là trùng lặp.
+        |
+        | Chạy SAU `seo_head_base` để cộng vào đúng tiêu đề cuối cùng, kể cả khi
+        | một plugin vừa ghi đè nó ở filter đó.
+        */
+        $paged = static::pagedNumber();
+
+        if($paged > 1)
+        {
+            $headService->setTitle($headService->title.' - Trang '.$paged);
+        }
 
         //OpenGraph
         $isArticle = Theme::isPage('post_detail');
@@ -252,9 +348,15 @@ class SkdSeo
             }
         }
 
+        //Báo trước tên miền bên thứ ba để trình duyệt bắt tay sớm
+        foreach (static::preconnectDomains() as $index => $domain)
+        {
+            $headService->addCode('preconnect-'.$index, '<link rel="preconnect" href="'.$domain.'" />');
+        }
+
         //Add canonical
         $headService
-            ->addCode('canonical', '<link rel="canonical" href="'.request()->url().'" />');
+            ->addCode('canonical', '<link rel="canonical" href="'.static::canonicalUrl().'" />');
 
         $headService = apply_filters('seo_render', $headService, Theme::getPage());
 
