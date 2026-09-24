@@ -19,7 +19,8 @@ class SitemapProduct
      */
     protected static function query()
     {
-        return Product::where('type', 'product')->orderBy('id');
+        // @since 6.0.1 — theme/plugin lọc được sản phẩm không có trang chi tiết (URL 404 không được nằm trong sitemap)
+        return apply_filters('seo_sitemap_product_query', Product::where('type', 'product')->orderBy('id'));
     }
 
     static function register($listSiteMap)

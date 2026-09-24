@@ -16,7 +16,8 @@ class SitemapPostCategory
 
     static function sitemap($sitemap)
     {
-        $object = PostCategory::all();
+        //Filter seo_sitemap_post_category_query (6.0.2): theme loai danh muc khong muon dua vao sitemap
+        $object = apply_filters('seo_sitemap_post_category_query', PostCategory::query())->get();
 
         $sitemap->openUrlset();
 

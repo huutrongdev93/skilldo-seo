@@ -179,6 +179,9 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 | `skd_seo_robots_content` | filter | `$text` | Can thiệp nội dung `robots.txt` |
 | `skd_seo_ai_agents` | filter | `$agents` | Thêm/bớt crawler AI trong danh sách chặn |
 | `seo_sitemap_item_images` | filter | `$images, $item` | Thêm/bớt ảnh khai trong sitemap của một bản ghi (mặc định: một ảnh từ cột `image`) |
+| `seo_sitemap_post_query` | filter | `$query` (Eloquent `Post`) | Lọc bài đưa vào sitemap (vd loại bài không có trang chi tiết). Dùng chung cho `register()` và `sitemap()` nên số trang luôn khớp (6.0.1) |
+| `seo_sitemap_product_query` | filter | `$query` (Eloquent `Product`) | Như trên cho sản phẩm (6.0.1) |
+| `seo_sitemap_post_category_query` | filter | `$query` (Eloquent `PostCategory`) | Lọc danh mục bài viết đưa vào sitemap; trả về query, plugin tự `->get()` (6.0.2) |
 | `seo_preconnect_domains` | filter | `$domains` | Sửa danh sách tên miền `preconnect` (provider dựng từ ô script; header chỉ in 4 cái đầu) |
 | `schema_same_as`, `schema_country`, `schema_author_name` | filter | giá trị | Ghi đè `sameAs` / mã quốc gia / tên tác giả bài viết |
 | `schema_article_type` | filter | `$type, $item` | Đổi kiểu schema trang bài viết (mặc định `BlogPosting`; site là báo thật thì đổi `NewsArticle`) |
@@ -246,6 +249,9 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - **Thiết lập seo thủ công của trang lưu trữ không xuất ra ngoài trang**: `AdminPoint::object()` chỉ đọc `Cms::getData('object')` — trang danh mục bài viết / danh mục sản phẩm / thẻ đặt đối tượng ở `category` nên metabox lưu được nhưng frontend không bao giờ đọc tới. Đã thêm nhánh dự phòng `category`. ⚠ Đây là **đổi hành vi**: site nào từng đặt No Index / Canonical cho danh mục thì từ nay thiết lập đó bắt đầu có hiệu lực thật.
 
 ## Lịch sử thay đổi đáng nhớ
+
+- **2026-09 — 6.0.1 / 6.0.2 (chuyển từ instance 1mongolianbbq)**: ba filter `seo_sitemap_post_query`, `seo_sitemap_product_query`,
+  `seo_sitemap_post_category_query` để theme loại khỏi sitemap những bản ghi không có trang chi tiết (URL 404).
 
 - **2026-09 — chặn lập chỉ mục toàn website**: công tắc `seo_noindex` ở đầu tab Cấu hình > Seo, dành cho site demo / site đang dựng chạy trên tên miền thật. Bật lên thì chặn ở ba lớp: meta robots (`seo_render` priority **999**, cao hơn `AdminPoint::seoRender`@99 để thắng cả thiết lập tay), header `X-Robots-Tag` (gửi ngay ở `bootstrap/noindex.php` — phủ cả `sitemap.xml` / `llms.txt` là những thứ không có thẻ head), và `robots.txt` trả `Disallow: /` qua filter `skd_seo_robots_content`.
   - Đánh đổi đã cân nhắc: lớp robots.txt cắt luôn việc thu thập nên crawler không đọc được thẻ noindex — URL bị site khác trỏ tới vẫn có thể lọt vào kết quả tìm kiếm dạng chỉ có link. Chấp nhận được với site demo; site thật muốn **gỡ** khỏi index thì phải dùng No Index từng trang (metabox Seo) để crawler vào đọc được thẻ.

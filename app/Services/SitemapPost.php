@@ -22,7 +22,12 @@ class SitemapPost
      */
     protected static function query()
     {
-        return Post::query()->orderBy('id');
+        /*
+        | @since 6.0.1 — theme/plugin loại được những loại bài không có trang chi tiết
+        | (vd bài chi nhánh chỉ hiện dạng thẻ): URL của chúng trả 404 nên không được nằm trong sitemap.
+        | Cả register() (đếm trang, ngày) lẫn sitemap() đều đi qua đây nên hai bên luôn khớp nhau.
+        */
+        return apply_filters('seo_sitemap_post_query', Post::query()->orderBy('id'));
     }
 
     static function register($listSiteMap)
