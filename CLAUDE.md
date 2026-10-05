@@ -26,9 +26,9 @@ File này giúp agent hiểu ngay cấu trúc plugin mà không cần scan lại
 3. **`apply_filters('seo_head_base', $headService, $page)`** — nơi plugin/loại trang khác ghi đè nội dung cơ bản (`SeoTravel::headBase`, `SeoTag::headBase`).
 4. Cộng hậu tố `' - Trang N'` vào title khi đang ở trang phân trang thứ 2 trở đi (`SkdSeo::pagedNumber()`). Rồi tự thêm OpenGraph, Twitter card, `fb:app_id`, geo, author, `google-site-verification`, `hreflang` (khi đa ngữ), `preconnect` tới tên miền bên thứ ba (`SkdSeo::preconnectDomains()`, tối đa 4), và `canonical = SkdSeo::canonicalUrl()`.
 5. **`apply_filters('seo_render', $headService, $page)`** — nơi ghi đè robots / canonical / thêm meta. `AdminPoint::seoRender` chạy ở **priority 99** (thiết lập tay của biên tập viên phải thắng), `SeoTag::render` ở 20.
-6. `$headService->render()` — echo `<title>`, các `<meta>`, các `addCode()`, rồi gọi `Schema::render()`.
+6. `$headService->render()` — echo `<title>` (= `documentTitle()`: tự ghép `' | '.general_label` nếu title chưa chứa tên đó; chỉ thẻ `<title>`, og/twitter/schema vẫn dùng `$headService->title` trần; tắt bằng filter `seo_title_brand` trả rỗng, đổi dấu bằng `seo_title_separator`), các `<meta>`, các `addCode()`, rồi gọi `Schema::render()`.
 
-`Schema::render()`: luôn có `WebSite` + `Organization`; `is_home()` → `LocalBusiness` (nếu bật); `products_detail` → `Product`; `post_index` → `tag()` nếu có data-bag `tag`, ngược lại `category()` — **cả hai đều ra `CollectionPage`**; `post_detail` → `BlogPosting`; cuối cùng **`apply_filters('schema_render', $schemas, $page)`**.
+`Schema::render()`: luôn có `Organization`, `WebSite` **chỉ ở trang chủ** (không còn `alternateName` = title trang); `is_home()` → `LocalBusiness` (nếu bật); `products_detail` → `Product`; `post_index` → `tag()` nếu có data-bag `tag`, ngược lại `category()` — **cả hai đều ra `CollectionPage`**; `post_detail` → `BlogPosting`; cuối cùng **`apply_filters('schema_render', $schemas, $page)`**.
 
 > `HeadService::addMeta()` **dedupe theo `name`** — meta có tên (description, keywords, robots…) gọi nhiều lần chỉ ra một thẻ, lần sau ghi đè lần trước. Meta không tên (og:*, twitter: qua `addProperty`) thì nối thêm.
 
@@ -249,6 +249,12 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - **Thiết lập seo thủ công của trang lưu trữ không xuất ra ngoài trang**: `AdminPoint::object()` chỉ đọc `Cms::getData('object')` — trang danh mục bài viết / danh mục sản phẩm / thẻ đặt đối tượng ở `category` nên metabox lưu được nhưng frontend không bao giờ đọc tới. Đã thêm nhánh dự phòng `category`. ⚠ Đây là **đổi hành vi**: site nào từng đặt No Index / Canonical cho danh mục thì từ nay thiết lập đó bắt đầu có hiệu lực thật.
 
 ## Lịch sử thay đổi đáng nhớ
+
+- **2026-10 — 6.0.3 (góp ý SEO từ site mitsubishi-namauto)**:
+  - `<title>` tự ghép `' | '.general_label` (`HeadService::documentTitle()`), title được trim; og/twitter/schema giữ title trần.
+  - Thêm `og:site_name`; `meta author` = `general_label` (trước là `general_title` = title trang chủ).
+  - Bỏ `alternateName` (= title trang hiện tại) khỏi WebSite/Organization/LocalBusiness; `WebSite` chỉ xuất ở trang chủ.
+  - Product: `offerCount` = 1 (trước bị gán bằng giá), không khai `offers` khi chưa có giá. ⚠ **Đổi hành vi**: bỏ đánh giá giả 5 sao / 20 lượt + review "Quản trị viên" cho sản phẩm chưa có đánh giá thật — các sản phẩm đó sẽ mất sao trên kết quả tìm kiếm. `aggregateRating` giờ là trung bình thật (làm tròn 1 chữ số, không còn làm tròn về số nguyên).
 
 - **2026-09 — 6.0.1 / 6.0.2 (chuyển từ instance 1mongolianbbq)**: ba filter `seo_sitemap_post_query`, `seo_sitemap_product_query`,
   `seo_sitemap_post_category_query` để theme loại khỏi sitemap những bản ghi không có trang chi tiết (URL 404).

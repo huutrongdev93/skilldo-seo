@@ -38,7 +38,7 @@ Class Schema {
 
     function setTitle($title): static
     {
-        if(!empty($title)) $this->title = Str::clear($title);
+        if(!empty($title)) $this->title = trim(Str::clear($title));
         $this->title = apply_filters('schema_title', $this->title);
         return $this;
     }
@@ -62,29 +62,36 @@ Class Schema {
     //schema chung cho toàn website
     public function website(): static
     {
-        $this->schemas[] = [
-            "@context"      => $this->website,
-            "@type"         => "WebSite",
-            "name"          => Option::get('general_label'),
-            "alternateName" => $this->title,
-            "url"           => Url::base(),
-            "potentialAction"=> [
-                "@type" => "SearchAction",
-                "target" => [
-                    "@type"         => "EntryPoint",
-                    //Url::base() đã có sẵn dấu gạch chéo cuối — nối thêm '/search' nữa ra '//search'.
-                    "urlTemplate"   => Url::base('search?keyword={search_term_string}&type=products')
+        /*
+        | WebSite chỉ khai ở trang chủ: nó mô tả cả website (tên + ô tìm kiếm),
+        | không phải trang đang xem. `alternateName` trước đây lấy $this->title
+        | (= tiêu đề trang hiện tại), nên mỗi trang khai website mang một tên
+        | khác nhau — bỏ hẳn, tên website chỉ là `general_label`.
+        */
+        if(is_home())
+        {
+            $this->schemas[] = [
+                "@context"      => $this->website,
+                "@type"         => "WebSite",
+                "name"          => Option::get('general_label'),
+                "url"           => Url::base(),
+                "potentialAction"=> [
+                    "@type" => "SearchAction",
+                    "target" => [
+                        "@type"         => "EntryPoint",
+                        //Url::base() đã có sẵn dấu gạch chéo cuối — nối thêm '/search' nữa ra '//search'.
+                        "urlTemplate"   => Url::base('search?keyword={search_term_string}&type=products')
+                    ],
+                    "query-input" => "required name=search_term_string"
                 ],
-                "query-input" => "required name=search_term_string"
-            ],
-        ];
+            ];
+        }
 
         $organization = [
             "@context"      => $this->website,
             "@type"         => "Organization",
             "@id"           => Url::base().'#organization',
             "name"          => Option::get('general_label'),
-            "alternateName" => $this->title,
             "url"           => Url::base(),
             "logo"          => asset(Option::get('logo_header')),
             "contactPoint"=> [
@@ -155,7 +162,6 @@ Class Schema {
                 "@type"         => "LocalBusiness",
                 "@id"           => Url::base().'#localbusiness',
                 "name"          => Option::get('general_label'),
-                "alternateName" => $this->title,
                 "url"           => Url::base(),
                 "image"         => asset(Option::get('logo_header')),
                 "description"   => $this->description,
@@ -274,14 +280,29 @@ Class Schema {
             "image"         => $this->image,
             "description" 	=> (!empty($item->seo_description)) ? Str::clear($item->seo_description) : Str::clear($this->description),
             "sku"           => (!empty($item->code)) ? $item->code : $item->id,
-            "offers" 		=> [
+        ];
+
+        /*
+        | `offerCount` là SỐ LƯỢNG offer (người bán / biến thể), trước đây bị
+        | gán nhầm bằng giá. Một trang sản phẩm = một offer. Sản phẩm chưa có
+        | giá (giá liên hệ) thì không khai offers: khai giá 0 là sai sự thật.
+        */
+        $price = (float)$item->price;
+
+        $priceSale = (float)($item->price_sale ?? 0);
+
+        if($price > 0 || $priceSale > 0)
+        {
+            $low = ($priceSale > 0) ? $priceSale : $price;
+
+            $schema['offers'] = [
                 "@type"         => "AggregateOffer",
                 "priceCurrency" => "VND",
-                "highPrice"      => $item->price,
-                "lowPrice"      => (!empty($item->price_sale)) ? $item->price_sale : $item->price,
-                "offerCount"    => $item->price
-            ],
-        ];
+                "highPrice"     => max($price, $low),
+                "lowPrice"      => $low,
+                "offerCount"    => 1,
+            ];
+        }
 
         if(!empty($item->brand_id)){
             $brand = Brands::find($item->brand_id);
@@ -293,18 +314,23 @@ Class Schema {
             }
         }
 
-        $total_star = 5;
-
-        $total_number_review = 20;
-
+        /*
+        | Đánh giá chỉ khai khi có đánh giá THẬT từ plugin rating-star.
+        | Trước đây sản phẩm chưa có đánh giá nào vẫn được khai cứng 5 sao /
+        | 20 lượt kèm một review của "Quản trị viên" — Google coi là dữ liệu
+        | có cấu trúc gây hiểu lầm (có thể bị phạt thủ công, mất rich result
+        | của cả site). Không có đánh giá thì bỏ hẳn review + aggregateRating.
+        */
         if(class_exists(RatingStar::class))
         {
             $rating_star_data       = Product::getMeta($item->id, 'rating_star', true);
-            $total_star             = (isset($rating_star_data['star'])) ? $rating_star_data['star'] : 0;
-            $total_number_review    = (isset($rating_star_data['count'])) ? $rating_star_data['count'] : 0;
-            if($total_number_review > 0) {
-                $total_star = round($total_star / $total_number_review);
+            $total_star             = (isset($rating_star_data['star'])) ? (float)$rating_star_data['star'] : 0;
+            $total_number_review    = (isset($rating_star_data['count'])) ? (int)$rating_star_data['count'] : 0;
+
+            if($total_number_review > 0 && $total_star > 0)
+            {
                 $reviews = RatingStar::where('object_type', 'products')->where('object_id', $item->id)->where('star', 5)->limit(5)->get();
+
                 if (hasItems($reviews)) {
                     $schema['review'] = [];
                     foreach ($reviews as $review) {
@@ -325,32 +351,16 @@ Class Schema {
                         ];
                     }
                 }
-            }
-            else {
-                $total_star = 5;
-                $total_number_review = 20;
-            }
-        }
-        if(!isset($schema['review'])) {
-            $schema['review'] = [
-                "@type" => "Review",
-                "reviewRating" => [
-                    "@type" => "Rating",
-                    "ratingValue" => 5,
-                    "bestRating" => 5,
-                ],
-                "author"  => [
-                    "@type" => "Person",
-                    "name" => "Quản trị viên",
-                ]
-            ];
-        }
 
-        $schema['aggregateRating'] = [
-            "@type" => "AggregateRating",
-            "ratingValue" => $total_star,
-            "reviewCount" => $total_number_review,
-        ];
+                $schema['aggregateRating'] = [
+                    "@type"       => "AggregateRating",
+                    "ratingValue" => round($total_star / $total_number_review, 1),
+                    "bestRating"  => 5,
+                    "worstRating" => 1,
+                    "reviewCount" => $total_number_review,
+                ];
+            }
+        }
 
         $this->schemas[] = $schema;
 

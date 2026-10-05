@@ -20,6 +20,12 @@ class HeadService
 
     public mixed $auth;
 
+    /**
+     * Tên thương hiệu (option `general_label`) — dùng cho hậu tố <title>,
+     * og:site_name và meta author. Rỗng = site chưa khai tên, không thêm gì.
+     */
+    public string $brand = '';
+
     public string $favicon;
 
     public array $meta = [];
@@ -48,7 +54,14 @@ class HeadService
 
         $this->image = Option::get('logo_header');
 
-        $this->auth = Option::get('general_title');
+        $this->brand = trim(Str::clear((string)Option::get('general_label', '')));
+
+        /*
+        | Trước đây author lấy `general_title` — đó là title TRANG CHỦ ("Trang chủ
+        | | Tên site"), nên trang nào cũng khai tác giả là "Trang chủ | ...".
+        | Tác giả của nội dung là thương hiệu chủ site.
+        */
+        $this->auth = $this->brand;
 
         $this->schema = new Schema();
     }
@@ -63,7 +76,7 @@ class HeadService
             }
             $this->title = Str::clear($title);
         }
-        $this->title = apply_filters('seo_title', $this->title);
+        $this->title = trim((string)apply_filters('seo_title', $this->title));
 
         $this->schema->setTitle($this->title);
 
@@ -117,6 +130,38 @@ class HeadService
         if (!empty($auth)) $this->auth = $auth;
         $this->auth = apply_filters('seo_auth', $this->auth);
         return $this;
+    }
+
+    function setBrand($brand): static
+    {
+        $this->brand = trim(Str::clear((string)$brand));
+        return $this;
+    }
+
+    /**
+     * Tiêu đề in ra thẻ <title>: "Tiêu đề trang | Thương hiệu".
+     *
+     * Chỉ ghép ở đây, KHÔNG ghép vào $this->title — title đó còn được og:title,
+     * twitter:title và schema (tên Product, headline BlogPosting) dùng lại, ở
+     * đó phải là tên của chính nội dung. Tiêu đề đã chứa sẵn tên thương hiệu
+     * (thường là trang chủ, hoặc biên tập viên tự gõ) thì giữ nguyên.
+     *
+     * Filter `seo_title_brand` trả rỗng để tắt hẳn, `seo_title_separator` để
+     * đổi dấu ngăn cách.
+     */
+    function documentTitle(): string
+    {
+        $title = trim((string)$this->title);
+
+        $brand = trim((string)apply_filters('seo_title_brand', $this->brand));
+
+        if ($brand === '') return $title;
+
+        if ($title === '') return $brand;
+
+        if (mb_stripos($title, $brand) !== false) return $title;
+
+        return $title . apply_filters('seo_title_separator', ' | ') . $brand;
     }
 
     function setFavicon($favicon): static
@@ -195,7 +240,7 @@ class HeadService
 
     function render(): void
     {
-        echo '<title>' . $this->title . '</title>';
+        echo '<title>' . $this->documentTitle() . '</title>';
 
         foreach ($this->meta as $meta)
         {

@@ -9,7 +9,7 @@ use SkillDo\Cms\Support\Url;
 
 const SKD_SEO_NAME = 'skd-seo';
 
-const SKD_SEO_VERSION = '4.0.8';
+const SKD_SEO_VERSION = '6.0.3';
 
 const SKD_SEO_PATH = 'plugins/' . SKD_SEO_NAME . '/';
 
@@ -275,7 +275,8 @@ class SkdSeo
             ->addProperty('og:description', $headService->description)
             ->addProperty('og:image', $headService->image)
             ->addProperty('og:type', ($isArticle) ? 'article' : 'website')
-            ->addProperty('og:url', Url::current());
+            ->addProperty('og:url', Url::current())
+            ->addProperty('og:site_name', $headService->brand);
 
         /*
         | Thời điểm xuất bản / cập nhật của bài viết. Không có hai thẻ này thì
