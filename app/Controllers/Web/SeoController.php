@@ -11,6 +11,15 @@ use SkillDo\Http\Request;
 
 class SeoController extends Controller
 {
+    /**
+     * Đích của route fallback (routes/web.php): URL không khớp route nào. Tới được đây nghĩa
+     * là `RedirectIfMatched` đã tra bảng chuyển hướng và không thấy -> trả trang 404 của theme.
+     */
+    public function notFound(Request $request): void
+    {
+        \SkillDo\Cms\Support\Theme::page404();
+    }
+
     public function sitemap(Request $request): void
     {
         SitemapService::sitemap();

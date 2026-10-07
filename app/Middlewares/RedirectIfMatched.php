@@ -23,7 +23,12 @@ class RedirectIfMatched
         */
         if(!empty(config('skd-seo::redirect.enabled', true)))
         {
-            $currentPath = ltrim($request->path(), '/');
+            /*
+            | `path()` KHÔNG giải mã: URL cũ có ký tự ngoài ASCII tới dưới dạng `%ef%bc%88`
+            | trong khi admin (và script nhập) ghi `path` dạng đã giải mã — so thẳng thì
+            | không bao giờ khớp. Bỏ cả `/` cuối để `abc/` và `abc` là một.
+            */
+            $currentPath = trim(rawurldecode($request->path()), '/');
 
             $redirect = Cache::remember('seo_redirect_'.md5($currentPath), 30*60, function() use ($currentPath)
             {
@@ -32,7 +37,8 @@ class RedirectIfMatched
 
             if(hasItems($redirect))
             {
-                $target = $redirect->to;
+                // `to` tương đối (vd `du-an`) -> URL tuyệt đối theo gốc site (giữ thư mục con)
+                $target = \SkdSeo\Models\Redirect::targetUrl((string) $redirect->to);
 
                 if ($query = $request->getQueryString())
                 {

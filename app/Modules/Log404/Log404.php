@@ -48,7 +48,7 @@ class Log404
                         ->header('Pragma', 'no-cache')
                         ->header('Expires', '0');
 
-                    header("Location: $log404->to", true, 301);
+                    header("Location: ".\SkdSeo\Models\Redirect::targetUrl((string) $log404->to), true, 301);
                     exit;
                 }
 
@@ -76,7 +76,7 @@ class Log404
                             ->header('Pragma', 'no-cache')
                             ->header('Expires', '0');
 
-                        header("Location: $target", true, 301);
+                        header("Location: ".\SkdSeo\Models\Redirect::targetUrl((string) $target), true, 301);
                         exit;
                     }
                 }

@@ -26,7 +26,10 @@ class Form
             ])
             ->addField('to', 'text', [
                 'label'         => 'Url đích',
-                'validations'   => Rule::make()->notEmpty()->string()->url()
+                // Nhận cả URL đầy đủ lẫn đường dẫn TƯƠNG ĐỐI trong site (vd `du-an`, `san-pham/abc`):
+                // bản ghi tương đối không gãy khi đổi tên miền / cài thư mục con — middleware tự ghép
+                // Url::base(). Kiểm hình dạng ở Redirect::isTarget().
+                'validations'   => Rule::make()->notEmpty()->string()
             ]);
 
         return $form;

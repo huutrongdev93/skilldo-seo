@@ -32,3 +32,18 @@ Route::withoutMiddleware([
     Route::get('/llms-full.txt', 'SkdSeo\Controllers\Web\SeoController@llmsFull')->name('llmsFull');
 
 });
+
+/*
+|--------------------------------------------------------------------------
+| Route dự phòng cho URL nhiều đoạn
+|--------------------------------------------------------------------------
+|
+| Core chỉ có route bắt `/{slug}` và `/{locale}/{slug}`: URL từ ba đoạn trở lên
+| (`/product-category/a/b/`) không khớp route nào, nên KHÔNG middleware nhóm `web`
+| nào chạy — `RedirectIfMatched` không bao giờ thấy nó, và khách nhận trang lỗi
+| "route could not be found" với mã 200. Đó đúng là dạng URL của site cũ cần 301.
+|
+| `Route::fallback()` luôn được xếp sau mọi route khác (RouteCollection tách riêng
+| nhóm fallback), nên không che route thật nào dù file này nạp sớm.
+*/
+Route::fallback('SkdSeo\Controllers\Web\SeoController@notFound');

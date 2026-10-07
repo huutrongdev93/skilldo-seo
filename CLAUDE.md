@@ -58,7 +58,9 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 
 ### 4. Chuyển hướng & nhật ký 404
 
-- `RedirectIfMatched` (middleware nhóm web) tra bảng `redirect` theo `path`, cache `seo_redirect_{md5(path)}` 30 phút, giữ query string, `header('Location')` + `exit`.
+- `RedirectIfMatched` (middleware nhóm web) tra bảng `redirect` theo `path` **đã giải mã, bỏ `/` đầu-cuối** (`trim(rawurldecode($request->path()), '/')`), cache `seo_redirect_{md5(path)}` 30 phút, giữ query string, `header('Location')` + `exit`.
+- Cột `to` nhận URL đầy đủ **hoặc đường dẫn tương đối trong site** (`du-an`, `./`): `Redirect::targetUrl()` ghép `Url::base()` nên bản ghi không gãy khi đổi tên miền hay cài trong thư mục con. Kiểm tra hợp lệ dùng `Redirect::isTarget()` (chặn `javascript:`/`data:`…), **đừng dùng `Url::is()`** — nó bác đường dẫn tương đối.
+- `routes/web.php` khai `Route::fallback()` → `SeoController@notFound` (`Theme::page404()`): không có nó thì URL từ 3 đoạn trở lên không khớp route nào, middleware không chạy và khách nhận trang lỗi mã 200.
 - `Log404::handle()` treo trên action `template_redirect`: response 404 thì ghi/tăng `hit` bảng `log404`, và chuyển hướng nếu dòng đó bật hoặc theo cấu hình chung.
 - Cả hai module đều là "trang cấu hình" (`admin_system_tabs`, nhóm `marketing`), **không phải module CRUD có menu riêng**. Sửa từng dòng bằng modal + ajax riêng, không qua form save chuẩn.
 
@@ -70,7 +72,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 |---|---|
 | `plugin.json` | Manifest: version, provider, PSR-4 `SkdSeo\Modules`, đăng ký middleware `RedirectIfMatched` vào nhóm `web` |
 | `skd-seo.php` | Hằng + class `SkdSeo`: `active()/uninstall()`, `bodyTags()`, `buildAlternateLinks()` (hreflang), `pagedNumber()` + `canonicalUrl()` (phân trang + gạch chéo cuối ở trang chủ), `preconnectDomains()`, **`header()`** (toàn bộ meta head), và block đăng ký hook cuối file (admin: menu Marketing; frontend: breadcrumb schema + `cle_header` + các sitemap page/post/post-category/product/product-category) |
-| `routes/web.php` | `/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/llms-full.txt` → `SeoController`, trong nhóm `withoutMiddleware([StartSession, VerifyCsrfToken])`. Cả 4 phải có trong `SetLanguage::exclude()` của provider. **Phải dùng dạng `Route::withoutMiddleware()->group()`** — `SkillDo\Routing\Route` không có method `withoutMiddleware()`, gọi trên từng route là lỗi nghiêm trọng lúc nạp |
+| `routes/web.php` | Route fallback → `SeoController@notFound` (404 cho URL nhiều đoạn, để `RedirectIfMatched` chạy được) + `/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/llms-full.txt` → `SeoController`, trong nhóm `withoutMiddleware([StartSession, VerifyCsrfToken])`. Cả 4 phải có trong `SetLanguage::exclude()` của provider. **Phải dùng dạng `Route::withoutMiddleware()->group()`** — `SkillDo\Routing\Route` không có method `withoutMiddleware()`, gọi trên từng route là lỗi nghiêm trọng lúc nạp |
 | `database/database.php` | Migration cài đặt: tạo bảng `redirect` + `log404`. **Chỉ file này được chạy** (gọi từ `SkdSeo::active()/uninstall()`) |
 | `database/db_v3.1.0.php`, `db_v3.3.2.php`, `db_v4.0.0.php` | Migration theo phiên bản của cơ chế cũ — **không còn được chạy**, giữ để tham khảo |
 | `config/log404.php` | Default `enabled / redirect / link`, merge với option `seo_404` trong provider (`skd-seo::log404.*`) |
@@ -250,6 +252,10 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 
 ## Lịch sử thay đổi đáng nhớ
 
+- **2026-10 — 6.0.4 (chuyển hướng URL cũ khi làm lại site goldfitness.vn từ WordPress)**:
+  - `to` tương đối: trước đây gửi thẳng `Location: du-an` nên trình duyệt hiểu theo URL đang mở (`/product/x/du-an`), còn `/du-an` thì mất thư mục con. Thêm `Redirect::targetUrl()` (middleware + `Log404::handle`) và `Redirect::isTarget()` (2 ajax lưu nhanh; `Form` bỏ `->url()`).
+  - Path có ký tự ngoài ASCII (`treadmill（lcd…`) không bao giờ khớp vì `path()` chưa giải mã — nay so bằng `rawurldecode`. ⚠ Bản ghi cũ lưu dạng `%xx` sẽ hết khớp; nhập lại dạng giải mã.
+  - Thêm route fallback để URL nhiều đoạn (`/product-category/a/b/`) đi qua middleware và trả 404 thật thay vì 200.
 - **2026-10 — 6.0.3 (góp ý SEO từ site mitsubishi-namauto)**:
   - `<title>` tự ghép `' | '.general_label` (`HeadService::documentTitle()`), title được trim; og/twitter/schema giữ title trần.
   - Thêm `og:site_name`; `meta author` = `general_label` (trước là `general_title` = title trang chủ).

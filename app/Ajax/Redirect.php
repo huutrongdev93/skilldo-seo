@@ -26,7 +26,8 @@ Class Redirect
             response()->error(trans('Không được để trống Url chuyển hướng'));
         }
 
-        if(!Url::is($redirect->to))
+        // URL đầy đủ hoặc đường dẫn tương đối trong site (middleware tự ghép Url::base())
+        if(!\SkdSeo\Models\Redirect::isTarget((string) $redirect->to))
         {
             response()->error(trans('Url chuyển hướng phải là url'));
         }

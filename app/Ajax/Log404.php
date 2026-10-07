@@ -33,7 +33,7 @@ Class Log404
                 response()->error(trans('Không được để trống Url chuyển hướng'));
             }
 
-            if(!Url::is($redirect->to))
+            if(!\SkdSeo\Models\Redirect::isTarget((string) $redirect->to))
             {
                 response()->error(trans('Url chuyển hướng phải là url'));
             }
