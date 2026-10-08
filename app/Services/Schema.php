@@ -55,7 +55,7 @@ Class Schema {
         if(!empty($image)) $this->image = Str::clear($image);
         $this->image = apply_filters('schema_image', $this->image);
         if(!empty($this->image)) $this->image = Image::source($this->image)->link();
-        if(!Url::is($this->image)) $this->image = Url::base($this->image);
+        if(!empty($this->image) && !Url::is($this->image)) $this->image = Url::base($this->image);
         return $this;
     }
 

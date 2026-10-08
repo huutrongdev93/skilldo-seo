@@ -23,7 +23,7 @@ class Log404
 
             if(!hasItems($log404))
             {
-                if(config('skd-seo::log404.enabled', 1) === 1)
+                if((int) config('skd-seo::log404.enabled', 0) === 1)
                 {
                     \SkdSeo\Models\Log404::create([
                         'path'      => $url,
@@ -52,33 +52,34 @@ class Log404
                     exit;
                 }
 
-                /*
-                | Cú pháp đọc config của plugin là `skd-seo::log404.*`.
-                | Khoá `plugin.skd-seo.log404.*` KHÔNG tồn tại nên luôn rơi về mặc
-                | định 'home' -> mọi 404 đã có bản ghi đều bị 301 về trang chủ dù
-                | người dùng không bật chuyển hướng.
-                */
-                $redirectType = config('skd-seo::log404.redirect', '');
+            }
 
-                if(!empty($redirectType))
+            /*
+            | Cú pháp đọc config của plugin là `skd-seo::log404.*`.
+            | Khoá `plugin.skd-seo.log404.*` KHÔNG tồn tại nên luôn rơi về mặc
+            | định 'home' -> mọi 404 đã có bản ghi đều bị 301 về trang chủ dù
+            | người dùng không bật chuyển hướng.
+            */
+            $redirectType = config('skd-seo::log404.redirect', '');
+
+            if(!empty($redirectType))
+            {
+                $target = config('skd-seo::log404.link', $redirectType);
+
+                if($redirectType == 'home')
                 {
-                    $target = config('skd-seo::log404.link', $redirectType);
+                    $target = Url::base();
+                }
 
-                    if($redirectType == 'home')
-                    {
-                        $target = Url::base();
-                    }
+                if(!empty($target))
+                {
+                    response()
+                        ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                        ->header('Pragma', 'no-cache')
+                        ->header('Expires', '0');
 
-                    if(!empty($target))
-                    {
-                        response()
-                            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                            ->header('Pragma', 'no-cache')
-                            ->header('Expires', '0');
-
-                        header("Location: ".\SkdSeo\Models\Redirect::targetUrl((string) $target), true, 301);
-                        exit;
-                    }
+                    header("Location: ".\SkdSeo\Models\Redirect::targetUrl((string) $target), true, 301);
+                    exit;
                 }
             }
         }

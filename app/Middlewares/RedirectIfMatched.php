@@ -35,7 +35,8 @@ class RedirectIfMatched
                 return \SkdSeo\Models\Redirect::where('path', $currentPath)->first();
             });
 
-            if(hasItems($redirect))
+            // Cột `redirect`: 0 = Bật, 1 = Tắt (khớp radio ở form sửa và badge ở bảng)
+            if(hasItems($redirect) && (int) $redirect->redirect === 0)
             {
                 // `to` tương đối (vd `du-an`) -> URL tuyệt đối theo gốc site (giữ thư mục con)
                 $target = \SkdSeo\Models\Redirect::targetUrl((string) $redirect->to);

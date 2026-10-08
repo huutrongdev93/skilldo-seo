@@ -64,7 +64,7 @@
 
 			$('#redirect_to').val(item.to);
 
-			$("input[name=redirect][value='"+item.redirect+"']").prop(true);
+			$("input[name=redirect][value='"+item.redirect+"']").prop('checked', true);
 
 			$('#js_redirect_modal__edit').modal('show');
 

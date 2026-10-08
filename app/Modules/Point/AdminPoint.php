@@ -258,6 +258,8 @@ Class AdminPoint
                 $robotText =trim($robotText, ',');
             }
 
+            $robotText = trim($robotText, ',');
+
             if(!empty($robotText)) {
                 $seo_helper->addMeta('robots', $robotText);
             }

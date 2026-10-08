@@ -207,7 +207,7 @@ class AdminSystem
 
         echo Component::blockSystem(function (BlockSystem $blockSystem) use ($form)
         {
-            $blockSystem->header('Chấm điểm seo', 'Quản lý công cụ chấm điểm seo trong bài viết, sản phẩm...');
+            $blockSystem->header('Nhật ký 404 và chuyển hướng', 'Ghi lại các đường dẫn 404 và chuyển hướng khách về trang phù hợp');
             $blockSystem->content($form);
         });
     }

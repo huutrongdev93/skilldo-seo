@@ -120,7 +120,8 @@ class HeadService
         $this->image = apply_filters('seo_image', $this->image);
         $this->schema->setImage($this->image);
         if (!empty($this->image)) $this->image = \Image::source($this->image)->link();
-        if (!Url::is($this->image)) $this->image = Url::base($this->image);
+        // Ảnh trống thì Url::base('') ra địa chỉ trang chủ, og:image trỏ về trang chủ
+        if (!empty($this->image) && !Url::is($this->image)) $this->image = Url::base($this->image);
         $this->addMeta('image', $this->image);
         return $this;
     }
