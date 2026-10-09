@@ -150,10 +150,12 @@ class SeoTravel
         {
             $modules['tour'] = [
                 'class' => \SkdSeo\Modules\Point\Modules\Tour::class,
+                'model' => \Travel\Models\Tour::class,
             ];
 
             $modules['travel_category'] = [
                 'class' => \SkdSeo\Modules\Point\Modules\TourCategory::class,
+                'model' => \Travel\Models\Category::class,
             ];
         }
 

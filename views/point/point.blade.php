@@ -16,23 +16,35 @@
 <div class="tab-content" style="padding:10px;">
     <div class="tab-pane fade show active" id="seo-general">
         <div class="form-group">
-            <label for="">Keyword chính</label>
+            <label for="seo_focus_keyword">Từ khóa chính</label>
             <div class="input-group">
                 <input name="seo_focus_keyword" type="text" class="form-control" id="seo_focus_keyword" value="{{$focusKeyword}}">
-                <span class="input-group-addon"><span id="seo_point">0</span>/100</span>
+                <span class="input-group-addon seo-point-score"><span id="seo_point">0</span>/100</span>
             </div>
-            <p style="margin: 5px 0; color: #ccc;">Chèn từ khóa bạn muốn xếp hạng.</p>
+            <p style="margin: 5px 0; color: #999;">Cụm từ bạn muốn trang này xếp hạng trên Google.</p>
         </div>
+
+        <div class="seo-serp-preview">
+            <div class="seo-serp-label">Xem trước trên Google</div>
+            <div class="seo-serp-url js_seo_serp_url"></div>
+            <div class="seo-serp-title js_seo_serp_title"></div>
+            <div class="seo-serp-desc js_seo_serp_desc"></div>
+        </div>
+
         <div class="panel-group seo-panel-group" id="seo-group-panel" role="tablist" aria-multiselectable="true">
             <div class="panel panel-default">
                 <div id="seo_panel_base" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="seo_panel_heading_base">
                     <div class="panel-body">
                         <ul>
                             @php($criteria = (isset($criteria) && hasItems($criteria)) ? $criteria : \SkdSeo\Supports\SeoPoint::listCriteria())
+                            @php($pointWeights = $pointConfig['weights'] ?? \SkdSeo\Supports\SeoPoint::weights())
+                            @php($criteria = \SkdSeo\Supports\SeoPoint::sortByImportance($criteria, $pointWeights))
                             @foreach ($criteria as $key => $label)
+                                @php($level = \SkdSeo\Supports\SeoPoint::importance($pointWeights[$key] ?? 1))
                                 <li key="{{$key}}" class="seo-check-{{$key}} test-fail">
                                     <span class="icon"><i class="fal fa-times"></i></span>
                                     <span class="txt">{{$label}}</span>
+                                    <span class="seo-importance seo-importance-{{$level['key']}}" title="{{$level['hint']}}">{{$level['label']}}</span>
                                 </li>
                             @endforeach
                         </ul>
@@ -57,539 +69,555 @@
 
 <style>
     .seo-panel-group ul li {
-        font-size: 15px;
-        line-height: 28px;
+        font-size: 14px;
+        line-height: 25px;
         position: relative;
         clear: both;
         color: #5a6065;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: flex-start;
     }
-    li span.icon {
+    .seo-panel-group li span.icon {
         color:#fff;
+        flex: 0 0 25px;
         width: 25px; height: 25px; line-height: 25px;
         text-align: center;
         display: inline-block;border-radius: 50%;
-        margin-right: 5px;
+        margin-right: 8px;
     }
-    li.test-fail span.icon {
+    .seo-panel-group li.test-fail span.icon {
         background-color: #F29C96;
     }
-    li.test-success span.icon {
+    .seo-panel-group li.test-success span.icon {
         background-color: var(--green);
     }
+    .seo-panel-group li span.txt { flex: 1 1 auto; }
+    .seo-importance {
+        flex: 0 0 auto;
+        margin-left: 8px; padding: 0 8px;
+        font-size: 11px; line-height: 20px; font-weight: 600;
+        border-radius: 10px; white-space: nowrap;
+        margin-top: 2px; cursor: help;
+    }
+    .seo-importance-high { background-color: #fde2e0; color: #c0392b; }
+    .seo-importance-medium { background-color: #fff1d6; color: #b9770e; }
+    .seo-importance-low { background-color: #eef0f2; color: #6c757d; }
+    .seo-point-score.is-bad { background-color: #fde2e0; color: #c0392b; }
+    .seo-point-score.is-ok { background-color: #fff1d6; color: #b9770e; }
+    .seo-point-score.is-good { background-color: #dff5e3; color: #1e8449; }
+    .seo-serp-preview {
+        border: 1px solid #e5e5e5; border-radius: 8px;
+        padding: 12px 14px; margin-bottom: 15px;
+        font-family: Arial, sans-serif; background: #fff;
+    }
+    .seo-serp-label { font-size: 12px; color: #999; margin-bottom: 6px; }
+    .seo-serp-url { font-size: 13px; color: #202124; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .seo-serp-title { font-size: 20px; line-height: 26px; color: #1a0dab; margin: 2px 0; }
+    .seo-serp-desc { font-size: 14px; line-height: 22px; color: #4d5156; }
 </style>
 
 <script>
     $(function () {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Chấm điểm SEO (bộ tiêu chí 2026, skd-seo 6.1.0)
+        |--------------------------------------------------------------------------
+        | Nguyên tắc: chấm trên đúng thứ khách và Google THẤY ngoài trang, không
+        | phải từng ô nhập riêng lẻ.
+        |  - Tiêu đề = Meta title (seo_title) nếu có, trống thì là ô Tiêu đề, cộng
+        |    hậu tố tên thương hiệu như HeadService::documentTitle().
+        |  - Mô tả = Meta description nếu có, trống thì là mô tả ngắn (excerpt),
+        |    giống SkdSeo::header().
+        |  - Ô Tiêu đề được giao diện in ra làm H1, nên nội dung KHÔNG được có H1
+        |    và cũng không đòi H1 trong nội dung.
+        | Form không có trình soạn thảo nội dung / ô ảnh đại diện thì các tiêu chí
+        | tương ứng tự bị bỏ khỏi danh sách và khỏi mẫu số.
+        */
+        let config = <?php echo json_encode($pointConfig ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+
+        let weights = config.weights || {};
+
+        let settings = $.extend({minWords: 300, longWords: 300}, config.settings || {});
+
+        let language = '<?php echo Language::default();?>';
+
+        let seoPanel = $('#seo-general');
 
         let icon = {
             'error'   : '<i class="fal fa-times"></i>',
             'success' : '<i class="fal fa-check"></i>'
         };
 
-        let messageError = {
-            'keywordInTitle' : 'Thêm Từ khóa chính vào tiêu đề SEO.'
-        };
-
+        //Câu báo khi ĐẠT. Khi chưa đạt dùng câu gợi ý trong SeoPoint::listCriteria()
         let messageSuccess = {
-            'keywordInTitle' : 'Hurray! Bạn đang sử dụng Focus Keyword trong tiêu đề SEO.',
-            'lengthTitle' : 'Tuyệt vời! Tiêu đề của bạn đã có độ dài tối ưu',
-            'lengthMetaDescription' : 'Tuyệt vời! Mô tả meta seo của bạn đã có độ dài tối ưu'
+            'keywordNotUsed'           : 'Đã đặt từ khóa chính.',
+            'keywordUnique'            : 'Từ khóa chính chưa được dùng cho nội dung nào khác.',
+            'keywordInTitle'           : 'Tiêu đề có chứa từ khóa chính.',
+            'titleStartWithKeyword'    : 'Từ khóa chính nằm ở nửa đầu tiêu đề.',
+            'keywordInMetaDescription' : 'Mô tả có chứa từ khóa chính.',
+            'keywordInPermalink'       : 'Đường dẫn có chứa từ khóa chính.',
+            'keywordIn10Percent'       : 'Từ khóa chính xuất hiện ngay ở đoạn mở đầu.',
+            'keywordInContent'         : 'Nội dung có sử dụng từ khóa chính.',
+            'keywordInSubheadings'     : 'Từ khóa chính có trong tiêu đề phụ.',
+            'noH1InContent'            : 'Nội dung không có thẻ H1 (giao diện đã dùng tiêu đề làm H1).',
+            'contentHasLists'          : 'Nội dung có danh sách hoặc bảng.',
+            'linksHasInternal'         : 'Nội dung có liên kết nội bộ.',
+            'linksHasExternal'         : 'Nội dung có dẫn nguồn ra website bên ngoài.',
+            'hasFeaturedImage'         : 'Đã có ảnh đại diện.'
         };
 
-        let language = '<?php echo Language::default();?>';
+        let criteriaLabels = {};
+
+        seoPanel.find('li[key]').each(function () {
+            criteriaLabels[$(this).attr('key')] = $(this).find('span.txt').text();
+        });
+
+        let criteriaKeys = Object.keys(criteriaLabels);
+
+        let contentCriteria = [
+            'keywordIn10Percent', 'keywordInContent', 'keywordInSubheadings', 'keywordStuffing',
+            'contentNotThin', 'noH1InContent', 'contentHasSubheadings', 'contentHasShortParagraphs',
+            'contentHasLists', 'linksHasInternal', 'linksHasExternal', 'imagesHaveAlt'
+        ];
 
         /*
-        | Chỉ những tiêu chí đang hiển thị mới được tính điểm: mỗi module có bộ
-        | tiêu chí riêng (xem SeoPoint::criteria) nên mẫu số cũng thay đổi theo.
+        | Các ô của form. Ô Tiêu đề / Nội dung / Mô tả ngắn đa ngôn ngữ có id
+        | {lang}_*; danh mục / thẻ dùng {lang}_name thay cho {lang}_title. Ô slug
+        | là #slug, hoặc {lang}_slug khi bật slug theo ngôn ngữ (8.2.0).
         */
-        let criteriaKeys = <?php echo json_encode(array_keys($criteria)); ?>;
-
-        let criteriaTotal = criteriaKeys.length || 1;
-
-        let point = 0;
-
-        function seoPointAdd(key) {
-            if(criteriaKeys.indexOf(key) !== -1) point++;
+        function field(ids) {
+            for (let i = 0; i < ids.length; i++) {
+                let el = $(ids[i]);
+                if (el.length) return el.first();
+            }
+            return $();
         }
 
-		let seo_focus_keyword = $('#seo_focus_keyword');
-
-		let language_title = $('#'+language+'_title');
-
-		let language_name = $('#'+language+'_name');
-
-		let seo_description = $('#seo_description');
-
-        let keyword = {
-            'this'  : seo_focus_keyword,
-            'value' : seo_focus_keyword.val(),
+        let fields = {
+            keyword     : $('#seo_focus_keyword'),
+            title       : field(['#'+language+'_title', '#'+language+'_name']),
+            seoTitle    : field(['#seo_title', 'input[name="seo_title"]']),
+            description : field(['#seo_description', '[name="seo_description"]']),
+            excerpt     : field(['#'+language+'_excerpt']),
+            content     : field(['#'+language+'_content']),
+            slug        : field(['#slug', '#'+language+'_slug', 'input[name="'+language+'[slug]"]']),
+            image       : field(['#image', 'input[name="image"]'])
         };
 
-        let title = {};
-        if(typeof language_title.html() != 'undefined') {
-            title = {
-                'this'  : language_title,
-                'value' : language_title.val(),
-            };
-        }
-        else {
-            title = {
-                'this'  : language_name,
-                'value' : language_name.val(),
-            };
-        }
+        let hasContent = fields.content.length > 0;
 
-        let description = {
-            'this'  : seo_description,
-            'value' : seo_description.val(),
-        };
+        let hasImage = fields.image.length > 0;
+
+        criteriaKeys = criteriaKeys.filter(function (key) {
+            let keep = true;
+            if (!hasContent && contentCriteria.indexOf(key) !== -1) keep = false;
+            if (!hasImage && key === 'hasFeaturedImage') keep = false;
+            if (!keep) seoPanel.find('li[key="'+key+'"]').hide();
+            return keep;
+        });
+
+        let domainHost = '';
+
+        try { domainHost = new URL(domain).host.toLowerCase(); } catch (e) {}
 
         /*
-        | Không phải form nào cũng có trình soạn thảo nội dung (form thẻ chẳng
-        | hạn chỉ có tên + mô tả ngắn) — luôn để content là chuỗi rỗng thay vì
-        | undefined, nếu không stripHtml() sẽ nhét chữ "undefined" vào nội dung
-        | rồi đem đi đếm từ và tính mật độ từ khóa.
+        | Trạng thái kiểm tra trùng từ khóa (ajax). null = chưa có kết quả, coi
+        | như đạt để điểm không nhảy lên xuống trong lúc chờ.
         */
-        let content = $('#'+language+'_content').val() || '';
+        let unique = {keyword: null, items: null};
 
-        let slug = $('#slug').val();
+        //------------------------------------------------------------------ helpers
 
-        if(typeof slug === 'undefined' || slug.length === 0) {
-            slug = ChangeToSlug(title.value);
+        function norm(value) {
+            return (value || '').toString().normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
         }
 
-        title.value = (typeof title.value === 'string') ? title.value.toLowerCase() : '';
-
-        keyword.value = keyword.value.toLowerCase();
-
-	    if(typeof description.value == 'string') {
-		    description.value = description.value.toLowerCase();
+        function has(text, keyword) {
+            return keyword.length > 0 && text.indexOf(keyword) !== -1;
         }
 
-        let seoPanel = $('#seo-general');
+        /*
+        | Dựng DOM bằng DOMParser chứ không bằng div.innerHTML: div thường sẽ tải
+        | mọi <img> trong nội dung, mà hàm này chạy lại sau mỗi lần gõ phím.
+        */
+        let parser = new DOMParser();
 
-        seoRankMathGroup();
-
-        function seoRankMathGroup() {
-
-            point = 0;
-
-            if(keyword.value.length !== 0) {
-                //keywordInTitle
-                if(title.value.search(keyword.value) !== -1) {
-                    seoPointAdd('keywordInTitle');
-                    seoRankMathChangeStatus('keywordInTitle', 'success');
-                }
-
-                //titleStartWithKeyword
-                let beginTitle = title.value.search(keyword.value);
-
-                if(beginTitle === 0) {
-                    seoPointAdd('titleStartWithKeyword');
-                    seoRankMathChangeStatus('titleStartWithKeyword', 'success');
-                }
-                else {
-                    let endTitle = beginTitle + keyword.value.length;
-
-                    if(endTitle === title.value.length) {
-                        seoRankMathChangeStatus('titleStartWithKeyword', 'error');
-                    }
-                    else {
-                        seoPointAdd('titleStartWithKeyword');
-                        seoRankMathChangeStatus('titleStartWithKeyword', 'success');
-                    }
-                }
-            }
-            //lengthTitle
-            let titleLength = title.value.length;
-
-            if(titleLength >= 10 && titleLength <= 70) {
-                seoPointAdd('lengthTitle');
-                seoRankMathChangeStatus('lengthTitle', 'success');
-            }
-            else {
-                if(titleLength > 70) mess = 'Tiêu đề có '+ titleLength +' ký tự. Hãy xem xét rút ngắn nó.';
-                if(titleLength < 10) mess = 'Tiêu đề '+ titleLength +' ký tự (ngắn). Cố gắng có được 70 ký tự';
-                seoPanel.find('li[key="lengthTitle"]').removeClass('test-success').addClass('test-fail');
-                seoPanel.find('li[key="lengthTitle"]').find('span.txt').html(mess);
-                seoPanel.find('li[key="lengthTitle"]').find('span.icon').html(icon.error);
-            }
-
-            if(keyword.value.length !== 0) {
-                //keywordInMetaDescription
-                if (typeof description.value === 'string' && description.value.search(keyword.value) !== -1) {
-                    seoPointAdd('keywordInMetaDescription');
-                    seoRankMathChangeStatus('keywordInMetaDescription', 'success');
-                }
-            }
-
-            //lengthMetaDescription
-            let descriptionLength = (typeof description.value === 'string') ? description.value.length : 0;
-
-            if(descriptionLength >= 160 && descriptionLength <= 300) {
-                seoPointAdd('lengthMetaDescription');
-                seoRankMathChangeStatus('lengthMetaDescription', 'success');
-            }
-            else {
-                if(descriptionLength > 300) mess = 'Mô tả meta SEO có '+ descriptionLength +' ký tự. Hãy xem xét rút ngắn nó.';
-                if(descriptionLength < 160) mess = 'Mô tả meta SEO có '+ descriptionLength +' ký tự (ngắn). Cố gắng thành 160 ký tự';
-                seoPanel.find('li[key="lengthMetaDescription"]').removeClass('test-success').addClass('test-fail');
-                seoPanel.find('li[key="lengthMetaDescription"]').find('span.txt').html(mess);
-                seoPanel.find('li[key="lengthMetaDescription"]').find('span.icon').html(icon.error);
-            }
-
-            if(keyword.value.length !== 0) {
-                //keywordInPermalink
-                if (slug.search(ChangeToSlug(keyword.value)) !== -1) {
-                    seoPointAdd('keywordInPermalink');
-                    seoRankMathChangeStatus('keywordInPermalink', 'success');
-                }
-            }
-
-            //lengthPermalink
-            let object = seoPanel.find('li[key="lengthPermalink"]');
-            let slugLength = slug.length + domain.length - 8;
-            //Chiều dài url
-            if(slugLength > 75 || slugLength < 35) {
-                if(slugLength > 75) mess = 'Url có '+ slugLength +' ký tự (dài). Hãy xem xét rút ngắn nó.';
-                if(slugLength < 35) mess = 'Url có '+ slugLength +' ký tự (ngắn).';
-                object.removeClass('test-success').addClass('test-fail');
-                object.find('span.txt').html(mess);
-                object.find('span.icon').html(icon.error);
-            }
-            else {
-                seoPointAdd('lengthPermalink');
-                mess = 'Url có '+ slugLength +' ký tự. Tuyệt vời!';
-                object.removeClass('test-fail').addClass('test-success');
-                object.find('span.txt').html(mess);
-                object.find('span.icon').html(icon.success);
-            }
-
-            let contentRemoveHtml = stripHtml(content).toLowerCase();
-
-            if(keyword.value.length !== 0) {
-                //keywordIn10Percent & keywordInContent
-
-                let searchKey = contentRemoveHtml.search(keyword.value);
-
-                if (searchKey !== -1) {
-                    seoPointAdd('keywordInContent');
-                    seoRankMathChangeStatus('keywordInContent', 'success');
-                    let firstKeyword = contentRemoveHtml.substr(0, keyword.value.length).toLowerCase();
-                    if (keyword.value === firstKeyword) {
-                        seoPointAdd('keywordIn10Percent');
-                        seoRankMathChangeStatus('keywordIn10Percent', 'success');
-                    }
-                }
-            }
-
-            //lengthContent
-            let contentWord = contentRemoveHtml.split(/[\s.,;]+/).length;
-
-            if(contentWord >= 600 && contentWord <= 2500) {
-                seoPointAdd('lengthContent');
-                seoRankMathChangeStatus('lengthContent', 'success');
-            }
-            else {
-                seoRankMathChangeStatus('lengthContent', 'error');
-            }
-
-            let tmp = document.createElement('div');
-            tmp.innerHTML = content;
-            //linksHasInternal
-            let internalLinks = tmp.getElementsByTagName("a");
-
-            if (internalLinks.length === 0) {
-                seoRankMathChangeStatus('linksHasInternal', 'error');
-            } else {
-                let linksHasInternal = false;
-                $.each(internalLinks, function (index, value) {
-                    if (internalLinks[index].href.toLowerCase().search(domain) !== -1) {
-                        seoPointAdd('linksHasInternal');
-                        seoRankMathChangeStatus('linksHasInternal', 'success');
-                        linksHasInternal = true;
-                        return true;
-                    }
-                });
-                if (linksHasInternal === false) {
-                    seoRankMathChangeStatus('linksHasInternal', 'error');
-                }
-            }
-
-            //keywordInSubheadings
-            if (keyword.value.length !== 0) {
-                let keywordInSubheadings = false;
-                let headingH2 = tmp.getElementsByTagName('h2');
-
-                if (headingH2.length !== 0) {
-                    $.each(headingH2, function (index, value) {
-                        if (headingH2[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            seoPointAdd('keywordInSubheadings');
-                            seoRankMathChangeStatus('keywordInSubheadings', 'success');
-                            keywordInSubheadings = true;
-                            return true;
-                        }
-                    });
-
-                }
-                let headingH3 = tmp.getElementsByTagName('h3');
-                if (keywordInSubheadings === false && headingH3.length !== 0) {
-                    $.each(headingH3, function (index, value) {
-                        if (headingH3[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            seoPointAdd('keywordInSubheadings');
-                            seoRankMathChangeStatus('keywordInSubheadings', 'success');
-                            keywordInSubheadings = true;
-                            return true;
-                        }
-                    });
-                }
-
-                let headingH4 = tmp.getElementsByTagName('h4');
-                if (keywordInSubheadings === false && headingH4.length !== 0) {
-                    $.each(headingH4, function (index, value) {
-                        if (headingH4[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            seoPointAdd('keywordInSubheadings');
-                            seoRankMathChangeStatus('keywordInSubheadings', 'success');
-                            keywordInSubheadings = true;
-                            return true;
-                        }
-                    });
-                }
-
-                let headingH5 = tmp.getElementsByTagName('h5');
-                if (keywordInSubheadings === false && headingH5.length !== 0) {
-                    $.each(headingH5, function (index, value) {
-                        if (headingH5[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            seoPointAdd('keywordInSubheadings');
-                            seoRankMathChangeStatus('keywordInSubheadings', 'success');
-                            keywordInSubheadings = true;
-                            return true;
-                        }
-                    });
-                }
-
-                let headingH6 = tmp.getElementsByTagName('h5');
-                if (keywordInSubheadings === false && headingH6.length !== 0) {
-                    $.each(headingH6, function (index, value) {
-                        if (headingH6[index].innerText.toLowerCase().search(keyword.value) !== -1) {
-                            seoPointAdd('keywordInSubheadings');
-                            seoRankMathChangeStatus('keywordInSubheadings', 'success');
-                            keywordInSubheadings = true;
-                            return true;
-                        }
-                    });
-                }
-
-                if (keywordInSubheadings === false) seoRankMathChangeStatus('keywordInSubheadings', 'error');
-            }
-            //keywordInImageAlt & contentHasAssets
-            let img = tmp.getElementsByTagName('img');
-
-            if (img.length === 0) {
-                seoRankMathChangeStatus('keywordInImageAlt', 'error');
-                seoRankMathChangeStatus('contentHasAssets', 'error');
-            } else {
-                if(keyword.value.length !== 0) {
-                    let keywordInImageAlt = false;
-                    if (img.length >= 2) {
-                        seoPointAdd('contentHasAssets');
-                        seoRankMathChangeStatus('contentHasAssets', 'success');
-                    } else {
-                        seoRankMathChangeStatus('contentHasAssets', 'error');
-                    }
-                    $.each(img, function (index, value) {
-                        if (img[index].alt.toLowerCase().search(keyword.value) !== -1) {
-                            seoPointAdd('keywordInImageAlt');
-                            seoRankMathChangeStatus('keywordInImageAlt', 'success');
-                            keywordInImageAlt = true;
-                            return true;
-                        }
-                    });
-                    if (keywordInImageAlt === false) seoRankMathChangeStatus('keywordInImageAlt', 'error');
-                }
-            }
-
-            //keywordDensity
-            if (keyword.value.length !== 0) {
-
-                object = seoPanel.find('li[key="keywordDensity"]');
-
-                let mess;
-
-                let contentRemoveHtml = stripHtml(content).toLowerCase();
-
-                let contentWord = contentRemoveHtml.split(/[\s.,;]+/).length;
-
-                let nkr = occurrences(contentRemoveHtml, keyword.value);
-
-                let keywordDensity = (nkr / contentWord) * 100;
-
-                keywordDensity = keywordDensity.toFixed(2);
-
-                if(keywordDensity > 2.5 || keywordDensity < 0.75) {
-                    if(keywordDensity > 2.5) mess = 'Mật độ từ khóa là '+ keywordDensity +' (cao). Số lần từ khóa xuất hiện là ' +nkr+'.';
-                    if(keywordDensity < 0.75) mess = 'Mật độ từ khóa là '+ keywordDensity +' (thấp). Số lần từ khóa xuất hiện là ' +nkr+'.';
-                    object.removeClass('test-success').addClass('test-fail');
-                    object.find('span.txt').html(mess);
-                    object.find('span.icon').html(icon.error);
-                }
-                else {
-                    seoPointAdd('keywordDensity');
-                    mess = 'Mật độ từ khóa là '+ keywordDensity +'. Số lần từ khóa xuất hiện là ' +nkr+'.';
-                    object.removeClass('test-fail').addClass('test-success');
-                    object.find('span.txt').html(mess);
-                    object.find('span.icon').html(icon.success);
-                }
-            }
-
-            //contentHasShortParagraphs
-            let tagP = tmp.getElementsByTagName('p');
-            if (tagP.length >= 2) {
-                seoPointAdd('contentHasShortParagraphs');
-                seoRankMathChangeStatus('contentHasShortParagraphs', 'success');
-            } else {
-                seoRankMathChangeStatus('contentHasShortParagraphs', 'error');
-            }
-
-            if(keyword.value.length === 0) {
-                seoRankMathChangeStatus('keywordNotUsed', 'error');
-                seoRankMathChangeStatus('keywordInTitle', 'error');
-                seoRankMathChangeStatus('titleStartWithKeyword', 'error');
-                seoRankMathChangeStatus('keywordInMetaDescription', 'error');
-                seoRankMathChangeStatus('keywordInPermalink', 'error');
-                seoRankMathChangeStatus('keywordInContent', 'error');
-                seoRankMathChangeStatus('keywordIn10Percent', 'error');
-                seoRankMathChangeStatus('keywordInImageAlt', 'error');
-                seoRankMathChangeStatus('keywordDensity', 'error');
-                seoRankMathChangeStatus('keywordInSubheadings', 'error');
-            }
-            else {
-                seoPointAdd('keywordNotUsed');
-                seoRankMathChangeStatus('keywordNotUsed', 'success');
-            }
-
-            point = (point/criteriaTotal)*100;
-
-            $('#seo_point').html(Math.ceil(point));
-        }
-
-        function seoRankMathChangeStatus(key, status) {
-            let object = seoPanel.find('li[key="'+key+'"]');
-            if(status === 'success') {
-                object.removeClass('test-fail').addClass('test-success');
-                object.find('span.txt').html(messageSuccess[key]);
-                object.find('span.icon').html(icon.success);
-            } else {
-                object.removeClass('test-success').addClass('test-fail');
-                object.find('span.txt').html(messageError[key]);
-                object.find('span.icon').html(icon.error);
-            }
+        function parseHtml(html) {
+            return parser.parseFromString(html || '', 'text/html').body;
         }
 
         function stripHtml(html) {
-            let tmp = document.createElement("DIV");
-            tmp.innerHTML = html;
-            return tmp.textContent || tmp.innerText || "";
+            return (parseHtml(html).textContent || '').replace(/\s+/g, ' ').trim();
         }
 
-        function ChangeToSlug(title) {
-            //Đổi chữ hoa thành chữ thường
-            let slug = title.toLowerCase();
+        function editorValue(el) {
+            if (!el.length) return '';
+            let id = el.attr('id');
+            let editor = (id && typeof tinymce !== 'undefined') ? tinymce.get(id) : null;
+            if (editor) return editor.getContent();
+            return el.val() || '';
+        }
 
-            //Đổi ký tự có dấu thành không dấu
+        function countWords(text) {
+            return text.length ? text.split(/\s+/).filter(Boolean).length : 0;
+        }
+
+        function occurrences(text, keyword) {
+            if (!keyword.length) return 0;
+            let n = 0, pos = 0;
+            while ((pos = text.indexOf(keyword, pos)) !== -1) { n++; pos += keyword.length; }
+            return n;
+        }
+
+        let canvas = document.createElement('canvas').getContext('2d');
+
+        //Google cắt tiêu đề theo độ rộng hiển thị (~580px, Arial 20px), không theo số ký tự
+        function textWidth(text, font) {
+            canvas.font = font;
+            return canvas.measureText(text).width;
+        }
+
+        function truncateWidth(text, font, max) {
+            if (textWidth(text, font) <= max) return text;
+            while (text.length && textWidth(text + '…', font) > max) text = text.slice(0, -1);
+            return text.trim() + '…';
+        }
+
+        function documentTitle(title) {
+            let brand = (config.brand || '').trim();
+            title = title.trim();
+            if (!brand.length) return title;
+            if (!title.length) return brand;
+            if (title.toLowerCase().indexOf(brand.toLowerCase()) !== -1) return title;
+            return title + (config.separator || ' | ') + brand;
+        }
+
+        function changeToSlug(title) {
+            let slug = (title || '').toLowerCase();
             slug = slug.replace(/á|à|ả|ạ|ã|ă|ắ|ằ|ẳ|ẵ|ặ|â|ấ|ầ|ẩ|ẫ|ậ/gi, 'a');
             slug = slug.replace(/é|è|ẻ|ẽ|ẹ|ê|ế|ề|ể|ễ|ệ/gi, 'e');
-            slug = slug.replace(/i|í|ì|ỉ|ĩ|ị/gi, 'i');
+            slug = slug.replace(/í|ì|ỉ|ĩ|ị/gi, 'i');
             slug = slug.replace(/ó|ò|ỏ|õ|ọ|ô|ố|ồ|ổ|ỗ|ộ|ơ|ớ|ờ|ở|ỡ|ợ/gi, 'o');
             slug = slug.replace(/ú|ù|ủ|ũ|ụ|ư|ứ|ừ|ử|ữ|ự/gi, 'u');
             slug = slug.replace(/ý|ỳ|ỷ|ỹ|ỵ/gi, 'y');
             slug = slug.replace(/đ/gi, 'd');
-            //Xóa các ký tự đặt biệt
-            slug = slug.replace(/\`|\~|\!|\@|\#|\||\$|\%|\^|\&|\*|\(|\)|\+|\=|\,|\.|\/|\?|\>|\<|\'|\"|\:|\;|_/gi, '');
-            //Đổi khoảng trắng thành ký tự gạch ngang
-            slug = slug.replace(/ /gi, "-");
-            //Đổi nhiều ký tự gạch ngang liên tiếp thành 1 ký tự gạch ngang
-            //Phòng trường hợp người nhập vào quá nhiều ký tự trắng
-            slug = slug.replace(/\-\-\-\-\-/gi, '-');
-            slug = slug.replace(/\-\-\-\-/gi, '-');
-            slug = slug.replace(/\-\-\-/gi, '-');
-            slug = slug.replace(/\-\-/gi, '-');
-            //Xóa các ký tự gạch ngang ở đầu và cuối
-            slug = '@' + slug + '@';
-            slug = slug.replace(/\@\-|\-\@|\@/gi, '');
-            //In slug ra textbox có id “slug”
+            slug = slug.replace(/[^a-z0-9\s-]/g, '');
+            slug = slug.replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
             return slug;
         }
 
-        function occurrences(string, subString, allowOverlapping) {
-
-            string += "";
-            subString += "";
-            if (subString.length <= 0) return (string.length + 1);
-
-            var n = 0,
-                pos = 0,
-                step = allowOverlapping ? 1 : subString.length;
-
-            while (true) {
-                pos = string.indexOf(subString, pos);
-                if (pos >= 0) {
-                    ++n;
-                    pos += step;
-                } else break;
-            }
-            return n;
+        function linkHost(href) {
+            try { return new URL(href, domain).host.toLowerCase(); } catch (e) { return ''; }
         }
 
-        title.this.change(function () {
-            title.value = $(this).val();
-            title.value = title.value.toLowerCase();
-            if(typeof slug != 'string' && slug.length === 0) {
-                slug = ChangeToSlug(title.value);
+        //------------------------------------------------------------------ đọc form
+
+        function collect() {
+
+            let rawTitle = (fields.title.val() || '').trim();
+
+            let rawSeoTitle = (fields.seoTitle.val() || '').trim();
+
+            let seoTitle = rawSeoTitle.length ? rawSeoTitle : rawTitle;
+
+            let rawDescription = (fields.description.val() || '').trim();
+
+            let description = rawDescription.length ? rawDescription : stripHtml(editorValue(fields.excerpt));
+
+            let slug = (fields.slug.val() || '').trim();
+
+            if (!slug.length) slug = changeToSlug(rawTitle);
+
+            let html = editorValue(fields.content);
+
+            let dom = parseHtml(html);
+
+            let text = stripHtml(html);
+
+            return {
+                keyword         : norm(fields.keyword.val()),
+                seoTitle        : seoTitle,
+                seoTitleFromH1  : !rawSeoTitle.length,
+                documentTitle   : documentTitle(seoTitle),
+                description     : description,
+                descriptionFromExcerpt : !rawDescription.length && description.length > 0,
+                slug            : slug,
+                url             : (domain || '') + slug,
+                html            : html,
+                dom             : dom,
+                text            : norm(text),
+                words           : countWords(text),
+                image           : (fields.image.val() || '').trim()
+            };
+        }
+
+        //------------------------------------------------------------------ chấm
+
+        function evaluate(d) {
+
+            let r = {};
+
+            let kw = d.keyword;
+
+            let noKeyword = [false, 'Chưa đặt từ khóa chính.'];
+
+            let titleNorm = norm(d.seoTitle);
+
+            let titleSource = d.seoTitleFromH1 ? ' (đang lấy từ ô Tiêu đề vì chưa điền Meta title)' : '';
+
+            //Từ khóa
+            r.keywordNotUsed = [kw.length > 0];
+
+            if (!kw.length) {
+                r.keywordUnique = noKeyword;
+            } else if (unique.keyword !== kw || unique.items === null) {
+                r.keywordUnique = [true, 'Đang kiểm tra từ khóa trùng...'];
+            } else if (unique.items.length) {
+                r.keywordUnique = [false, 'Từ khóa đã được dùng cho: ' + unique.items.map(function (t) { return '"' + $('<div>').text(t).html() + '"'; }).join(', ') + '. Hai trang cùng nhắm một từ khóa sẽ tranh thứ hạng của nhau.'];
+            } else {
+                r.keywordUnique = [true];
             }
-            seoRankMathGroup();
-        });
 
-        description.this.change(function () {
-            description.value = $(this).val();
-			if(typeof description.value == 'string') {
-				description.value = description.value.toLowerCase();
+            r.keywordInTitle = kw.length ? [has(titleNorm, kw), has(titleNorm, kw) ? null : 'Thêm từ khóa chính vào tiêu đề' + titleSource + '.'] : noKeyword;
+
+            if (!kw.length) {
+                r.titleStartWithKeyword = noKeyword;
+            } else {
+                let pos = titleNorm.indexOf(kw);
+                r.titleStartWithKeyword = [pos !== -1 && pos <= titleNorm.length / 2];
             }
-            seoRankMathGroup();
-        });
 
-        keyword.this.change(function () {
-            keyword.value = $(this).val();
-            keyword.value = keyword.value.toLowerCase();
-            seoRankMathGroup();
-        });
+            r.keywordInMetaDescription = kw.length ? [has(norm(d.description), kw)] : noKeyword;
 
-        $(document).on('change', '#slug', function () {
-            slug = $('#slug').val();
-            seoRankMathGroup();
-        });
+            r.keywordInPermalink = kw.length ? [d.slug.indexOf(changeToSlug(kw)) !== -1] : noKeyword;
 
-        $(document).on('change', '#'+language+'_content', function () {
-            seoRankMathGroup();
+            if (!kw.length) {
+                r.keywordIn10Percent = noKeyword;
+                r.keywordInContent = noKeyword;
+                r.keywordInSubheadings = noKeyword;
+                r.keywordStuffing = noKeyword;
+            } else {
+                let pos = d.text.indexOf(kw);
+
+                r.keywordInContent = [pos !== -1];
+
+                r.keywordIn10Percent = [pos !== -1 && pos <= Math.max(200, d.text.length * 0.1)];
+
+                let inHeading = false;
+                $(d.dom).find('h2,h3,h4,h5,h6').each(function () {
+                    if (has(norm($(this).text()), kw)) { inHeading = true; return false; }
+                });
+                r.keywordInSubheadings = [inHeading];
+
+                /*
+                | Mật độ từ khóa không còn là yếu tố xếp hạng: chỉ báo lỗi khi bị
+                | NHỒI (hơn 3 lần trên 100 từ, tối thiểu 4 lần) chứ không đòi đạt
+                | một mật độ "chuẩn" nào.
+                */
+                let count = occurrences(d.text, kw);
+                let per100 = d.words ? (count / d.words) * 100 : 0;
+                let stuffed = count >= 4 && per100 > 3;
+                r.keywordStuffing = [!stuffed, 'Từ khóa xuất hiện ' + count + ' lần trong ' + d.words + ' từ (' + per100.toFixed(1) + ' lần/100 từ)' + (stuffed ? ', quá dày. Hãy viết tự nhiên hơn hoặc dùng từ đồng nghĩa.' : '.')];
+            }
+
+            //Tiêu đề
+            let titleLen = d.documentTitle.length;
+            let titleWidth = textWidth(d.documentTitle, '20px Arial');
+            let brandNote = (d.documentTitle !== d.seoTitle.trim()) ? ' (đã tính cả tên thương hiệu "' + config.brand + '" hệ thống tự ghép vào)' : '';
+            if (titleLen < 30) {
+                r.lengthTitle = [false, 'Tiêu đề hiển thị có ' + titleLen + ' ký tự' + brandNote + ', hơi ngắn. Nên từ 30 ký tự trở lên' + titleSource + '.'];
+            } else if (titleWidth > 580) {
+                r.lengthTitle = [false, 'Tiêu đề hiển thị có ' + titleLen + ' ký tự' + brandNote + ', Google sẽ cắt bớt phần cuối. Hãy rút ngắn' + titleSource + '.'];
+            } else {
+                r.lengthTitle = [true, 'Tiêu đề hiển thị có ' + titleLen + ' ký tự' + brandNote + ', vừa đủ, không bị cắt.'];
+            }
+
+            //Mô tả
+            let descLen = d.description.length;
+            let descSource = d.descriptionFromExcerpt ? ' (đang lấy từ mô tả ngắn vì chưa điền Meta description)' : '';
+            if (descLen === 0) {
+                r.lengthMetaDescription = [false, 'Chưa có mô tả. Hãy điền Meta description hoặc mô tả ngắn, nếu không Google sẽ tự trích một đoạn bất kỳ.'];
+            } else if (descLen < 110) {
+                r.lengthMetaDescription = [false, 'Mô tả có ' + descLen + ' ký tự' + descSource + ', hơi ngắn. Nên từ 110 đến 160 ký tự.'];
+            } else if (descLen > 160) {
+                r.lengthMetaDescription = [false, 'Mô tả có ' + descLen + ' ký tự' + descSource + ', Google sẽ cắt bớt. Nên từ 110 đến 160 ký tự.'];
+            } else {
+                r.lengthMetaDescription = [true, 'Mô tả có ' + descLen + ' ký tự' + descSource + ', vừa đủ.'];
+            }
+
+            //Đường dẫn: ngắn là tốt, không có ngưỡng tối thiểu
+            let urlLen = d.url.replace(/^https?:\/\//, '').length;
+            r.lengthPermalink = [urlLen <= 75, 'Đường dẫn có ' + urlLen + ' ký tự' + (urlLen > 75 ? ', khá dài. Hãy rút gọn, bỏ bớt từ thừa.' : ', gọn gàng.')];
+
+            //Nội dung
+            let $dom = $(d.dom);
+
+            r.contentNotThin = [d.words >= settings.minWords, 'Nội dung có ' + d.words + ' từ' + (d.words >= settings.minWords ? '.' : ', khá mỏng. Nên có từ ' + settings.minWords + ' từ trở lên với thông tin thật sự hữu ích.')];
+
+            let h1 = $dom.find('h1').length;
+            r.noH1InContent = [h1 === 0, h1 ? 'Nội dung có ' + h1 + ' thẻ H1. Giao diện đã in tiêu đề làm H1, hãy đổi các thẻ này thành H2.' : null];
+
+            let isLong = d.words >= settings.longWords;
+
+            let subheadings = $dom.find('h2,h3').length;
+            r.contentHasSubheadings = [!isLong || subheadings > 0, isLong ? (subheadings ? 'Nội dung có ' + subheadings + ' tiêu đề phụ H2/H3.' : null) : 'Nội dung ngắn, chưa cần tiêu đề phụ.'];
+
+            let longParagraph = 0;
+            $dom.find('p').each(function () {
+                if (countWords(stripHtml(this.innerHTML)) > 150) longParagraph++;
+            });
+            if (d.words === 0) {
+                r.contentHasShortParagraphs = [false];
+            } else if (longParagraph) {
+                r.contentHasShortParagraphs = [false, 'Có ' + longParagraph + ' đoạn văn dài hơn 150 từ. Hãy tách nhỏ để dễ đọc trên điện thoại.'];
+            } else {
+                r.contentHasShortParagraphs = [true, 'Các đoạn văn đều ngắn gọn, dễ đọc.'];
+            }
+
+            let lists = $dom.find('ul,ol,table').length;
+            r.contentHasLists = [!isLong || lists > 0, isLong ? null : 'Nội dung ngắn, chưa cần danh sách hoặc bảng.'];
+
+            let internal = 0, external = 0;
+            $dom.find('a[href]').each(function () {
+                let href = ($(this).attr('href') || '').trim();
+                if (!href.length || /^(#|mailto:|tel:|javascript:)/i.test(href)) return;
+                let host = linkHost(href);
+                if (!host.length) return;
+                if (host === domainHost) internal++; else external++;
+            });
+            r.linksHasInternal = [internal > 0, internal ? 'Nội dung có ' + internal + ' liên kết nội bộ.' : null];
+            r.linksHasExternal = [external > 0, external ? 'Nội dung có ' + external + ' liên kết ra website bên ngoài.' : null];
+
+            let images = $dom.find('img');
+            let missingAlt = images.filter(function () { return !($(this).attr('alt') || '').trim().length; }).length;
+            if (!images.length) {
+                r.imagesHaveAlt = [true, 'Nội dung không có hình ảnh.'];
+            } else if (missingAlt) {
+                r.imagesHaveAlt = [false, missingAlt + '/' + images.length + ' ảnh trong nội dung chưa có alt. Alt nên mô tả đúng nội dung ảnh, không cần nhồi từ khóa.'];
+            } else {
+                r.imagesHaveAlt = [true, 'Cả ' + images.length + ' ảnh trong nội dung đều có alt.'];
+            }
+
+            r.hasFeaturedImage = [d.image.length > 0];
+
+            return r;
+        }
+
+        //------------------------------------------------------------------ hiển thị
+
+        function render(d, results) {
+
+            let total = 0, passed = 0;
+
+            criteriaKeys.forEach(function (key) {
+
+                let result = results[key];
+
+                //Tiêu chí do plugin khác thêm mà không có nhánh chấm: không tính
+                if (typeof result === 'undefined') return;
+
+                let weight = (typeof weights[key] === 'number') ? weights[key] : 1;
+
+                let ok = result[0] === true;
+
+                total += weight;
+
+                if (ok) passed += weight;
+
+                let message = result[1] || (ok ? (messageSuccess[key] || criteriaLabels[key]) : criteriaLabels[key]);
+
+                let li = seoPanel.find('li[key="'+key+'"]');
+
+                li.toggleClass('test-success', ok).toggleClass('test-fail', !ok);
+
+                li.find('span.icon').html(ok ? icon.success : icon.error);
+
+                li.find('span.txt').html(message);
+            });
+
+            let point = total ? Math.round((passed / total) * 100) : 0;
+
+            $('#seo_point').html(point);
+
+            seoPanel.find('.seo-point-score')
+                .toggleClass('is-bad', point < 50)
+                .toggleClass('is-ok', point >= 50 && point < 80)
+                .toggleClass('is-good', point >= 80);
+
+            //Khung xem trước kết quả tìm kiếm
+            seoPanel.find('.js_seo_serp_url').text(d.url);
+            seoPanel.find('.js_seo_serp_title').text(truncateWidth(d.documentTitle || 'Chưa có tiêu đề', '20px Arial', 580));
+            seoPanel.find('.js_seo_serp_desc').text(d.description.length > 160 ? d.description.slice(0, 157).trim() + '…' : (d.description || 'Chưa có mô tả, Google sẽ tự trích một đoạn trong nội dung.'));
+        }
+
+        function run() {
+            let data = collect();
+            render(data, evaluate(data));
+            checkUnique(data.keyword);
+        }
+
+        //------------------------------------------------------------------ trùng từ khóa
+
+        let uniqueTimer = null;
+
+        function checkUnique(keyword) {
+
+            if (!keyword.length || unique.keyword === keyword) return;
+
+            unique = {keyword: keyword, items: null};
+
+            clearTimeout(uniqueTimer);
+
+            uniqueTimer = setTimeout(function () {
+
+                request.post(ajax, {
+                    action  : 'SkdSeo\\Ajax\\Point::duplicate',
+                    module  : config.module || '',
+                    id      : config.id || 0,
+                    keyword : keyword
+                }).then(function (response) {
+
+                    if (unique.keyword !== keyword) return;
+
+                    //Lỗi mạng / module không hỗ trợ: coi như không trùng
+                    unique.items = (response && response.status === 'success' && response.data && Array.isArray(response.data.items)) ? response.data.items : [];
+
+                    let data = collect();
+
+                    render(data, evaluate(data));
+                });
+            }, 500);
+        }
+
+        //------------------------------------------------------------------ sự kiện
+
+        let runTimer = null;
+
+        function schedule() {
+            clearTimeout(runTimer);
+            runTimer = setTimeout(run, 300);
+        }
+
+        $.each(fields, function (name, el) {
+            if (el.length) el.on('input change', schedule);
         });
 
         /*
-        | Form không có trình soạn thảo nội dung thì tinymce.get() trả về null —
-        | gọi thẳng .getContent() sẽ ném lỗi lặp lại mỗi 3 giây trong console.
+        | TinyMCE không bắn sự kiện trên textarea gốc, ô ảnh của trình quản lý file
+        | cũng không chắc bắn change: dò thay đổi theo chu kỳ.
         */
+        let snapshot = '';
+
         setInterval(function () {
-
-            let editor = (typeof tinymce !== 'undefined') ? tinymce.get(language+'_content') : null;
-
-            if(editor === null || typeof editor === 'undefined') {
-                return;
+            let current = editorValue(fields.content) + '\u0000' + editorValue(fields.excerpt) + '\u0000' + (fields.image.val() || '');
+            if (current !== snapshot) {
+                snapshot = current;
+                run();
             }
+        }, 2000);
 
-            if(content !== editor.getContent()) {
-                content = editor.getContent();
-                seoRankMathGroup();
-            }
-        }, 3000);
+        run();
     });
 </script>

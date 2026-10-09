@@ -7,6 +7,8 @@ use SkillDo\Cms\Support\Admin;
 use SkillDo\Cms\Support\Cms;
 use SkillDo\Cms\Support\Metabox;
 use SkillDo\Cms\Support\Url;
+use SkillDo\Cms\Support\Option;
+use Illuminate\Support\Str;
 
 Class AdminPoint
 {
@@ -64,13 +66,30 @@ Class AdminPoint
         $formSchema->radio('seo_schema_mode', ['auto' => 'Hệ thống tự động', 'custom' => 'Thủ công'], ['label' => 'Sử dụng'], $seo_schema_mode);
         $formSchema->code('seo_schema_custom', ['label' => 'Schema thủ công', 'language' => 'javascript'], $seo_schema_custom);
 
+        $module = $metaBox['module'] ?? '';
+
+        /*
+        | Thẻ <title> ngoài trang = tiêu đề + ' | ' + tên thương hiệu (xem
+        | HeadService::documentTitle). Chấm độ dài trên đúng chuỗi Google thấy,
+        | không phải chỉ phần biên tập viên gõ.
+        */
+        $brand = trim((string)apply_filters('seo_title_brand', trim(Str::clear((string)Option::get('general_label', '')))));
+
         Plugin::view('skd-seo', 'point/point', [
             'formRobots'    => $formRobots,
             'formCanonical' => $formCanonical,
             'formSchema'    => $formSchema,
             'focusKeyword'  => $focusKeyword,
             //Mỗi module có bộ tiêu chí riêng, xem SeoPoint::criteria()
-            'criteria'      => SeoPoint::criteria($metaBox['module'] ?? ''),
+            'criteria'      => SeoPoint::criteria($module),
+            'pointConfig'   => [
+                'module'    => $module,
+                'id'        => (hasItems($object)) ? (int)$object->id : 0,
+                'weights'   => SeoPoint::weights($module),
+                'settings'  => SeoPoint::settings($module),
+                'brand'     => $brand,
+                'separator' => (string)apply_filters('seo_title_separator', ' | '),
+            ],
         ]);
     }
 

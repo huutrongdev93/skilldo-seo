@@ -54,7 +54,10 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 - `SeoPoint::module()` là **registry module → class**, mở rộng qua filter `seo_point_admin_module_enable`. Mỗi class cài 8 method `get/set{FocusKeyword,Robots,Canonical,Schema}` + `schemaRender($page,$object)` + `seoRender($page,$object)`, dữ liệu lưu bằng `Model::updateMeta()`.
 - `AdminPoint::schemaRender/seoRender` **duyệt tuần tự các module và dừng ở module đầu tiên trả về dữ liệu** → 2 module cùng ăn một `$page` sẽ tranh nhau. Vì thế module nào dùng chung tên trang phải tự kiểm tra kiểu đối tượng (xem `Category` vs `Tag`, cả hai đều là `post_index`).
 - Đối tượng để đọc metadata: `AdminPoint::object()` lấy `Cms::getData('object')` (trang chi tiết), **rỗng thì lấy `Cms::getData('category')`** (trang lưu trữ: danh mục bài viết, danh mục sản phẩm, thẻ). Data-bag khác hai cái đó (travel dùng `tour`, `archive`) phải ánh xạ lại qua filter **`seo_point_object`**.
-- Bộ tiêu chí chấm điểm: `SeoPoint::criteria($module)` + filter **`seo_point_criteria`** — form thiếu trường (vd form thẻ không có editor nội dung) thì rút gọn danh sách, JS tự chia điểm theo số tiêu chí thực tế.
+- Bộ tiêu chí chấm điểm (bộ 2026, 6.1.0, 22 tiêu chí): `SeoPoint::listCriteria()` (key => câu gợi ý khi chưa đạt) + `SeoPoint::criteria($module)` + filter **`seo_point_criteria`**. Điểm **có trọng số**: `SeoPoint::weights($module)` (filter `seo_point_weights`, key lạ = 1), điểm = tổng trọng số đạt / tổng trọng số đang chấm. Nhãn mức quan trọng cạnh mỗi tiêu chí suy ra từ trọng số (`SeoPoint::importance()`: ≥8 Rất quan trọng, ≥5 Quan trọng, còn lại Nên có) và danh sách xếp theo trọng số giảm dần (`SeoPoint::sortByImportance()`, `keywordNotUsed` luôn đứng đầu), nên đổi trọng số là nhãn + thứ tự tự đổi theo. Ngưỡng theo module ở `SeoPoint::settings($module)` (filter `seo_point_settings`: `minWords` 300, sản phẩm/danh mục/thẻ 150; `longWords` 300).
+- JS chấm trên **thứ Google thấy**, không trên từng ô: tiêu đề = `seo_title`, trống thì ô Tiêu đề (`{lang}_title`/`{lang}_name`), cộng hậu tố thương hiệu như `HeadService::documentTitle()` (brand/separator truyền từ PHP); mô tả = `seo_description`, trống thì excerpt. Ô Tiêu đề là H1 do giao diện in ra → nội dung **không được có H1** (`noH1InContent`), không đòi H1.
+- Form thiếu editor nội dung (`#{lang}_content`) thì JS **tự ẩn** mọi tiêu chí nội dung; thiếu ô `image` thì ẩn `hasFeaturedImage`. Filter `seo_point_criteria` vẫn dùng được nhưng không còn bắt buộc cho trường hợp đó.
+- `keywordUnique`: ajax `SkdSeo\Ajax\Point::duplicate` → `SeoPoint::duplicateKeyword()`, tra metadata `seo_focus_keyword` theo **khoá `model` trong registry module** (`SeoPoint::module()`, `SeoTag`, `SeoTravel` đều khai). Module không khai `model` thì coi như không trùng.
 
 ### 4. Chuyển hướng & nhật ký 404
 
@@ -114,7 +117,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 
 ### app/Supports/
 
-- `SeoPoint.php` — registry module chấm điểm (`module()`), danh sách 17 tiêu chí (`listCriteria()`), bộ tiêu chí theo module (`criteria()`), đăng ký metabox (`registerMetabox()` — có xử lý riêng cho key dạng `post_{postType}` / `post_categories_{cateType}`).
+- `SeoPoint.php` — registry module chấm điểm (`module()`, mỗi mục `class` + `model`), danh sách 22 tiêu chí (`listCriteria()`), trọng số (`weights()`), ngưỡng (`settings()`), tìm từ khóa trùng (`duplicateKeyword()`), bộ tiêu chí theo module (`criteria()`), đăng ký metabox (`registerMetabox()` — có xử lý riêng cho key dạng `post_{postType}` / `post_categories_{cateType}`).
 - `SKDSeoSchemaBreadcrumb.php` — bơm microdata `BreadcrumbList` vào breadcrumb của theme qua 4 filter `breadcrumb_*`.
 
 ### app/Modules/
@@ -136,8 +139,8 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 - `Controllers/Web/SeoController.php` — 4 endpoint mỏng: `sitemap()`, `robots()`, `llms()`, `llmsFull()`. Toàn bộ phần dựng nội dung nằm ở `SitemapService` / `RobotsService` / `LlmsService`.
 - `Middlewares/RedirectIfMatched.php` — chuyển hướng theo bảng `redirect`.
 - `Models/Redirect.php` (bảng `redirect`), `Models/Log404.php` (bảng `log404`) — model thuần, không route/language.
-- `Ajax/Redirect.php`, `Ajax/Log404.php` — lưu nhanh 1 dòng từ modal, tự xóa cache `seo_redirect_*`.
-- `views/point/point.blade.php` — metabox Seo (nhận `$formRobots`, `$formCanonical`, `$formSchema`, `$focusKeyword`, `$criteria`) + JS chấm điểm. `views/redirect/script.blade.php`, `views/404/script.blade.php` — modal sửa nhanh.
+- `Ajax/Redirect.php`, `Ajax/Log404.php` — lưu nhanh 1 dòng từ modal, tự xóa cache `seo_redirect_*`. `Ajax/Point.php` — `duplicate`: từ khóa chính đã dùng cho đối tượng khác cùng module chưa.
+- `views/point/point.blade.php` — metabox Seo (nhận `$formRobots`, `$formCanonical`, `$formSchema`, `$focusKeyword`, `$criteria`, `$pointConfig` = module/id/weights/settings/brand/separator) + khung xem trước Google + JS chấm điểm (`collect()` đọc form → `evaluate()` trả `{key: [đạt, câu báo]}` → `render()`). `views/redirect/script.blade.php`, `views/404/script.blade.php` — modal sửa nhanh.
 - `assets/main-sitemap.xsl` — stylesheet hiển thị sitemap. `assets/thumb.png` — ảnh plugin.
 
 ## Option & config
@@ -191,6 +194,8 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 | `seo_point_admin_module_enable` | filter | `$modules` | Khai class đọc/ghi metadata seo của module |
 | `seo_point_object` | filter | `$object, $page` | Ánh xạ đối tượng đang hiển thị cho trang không dùng data-bag `object` |
 | `seo_point_criteria` | filter | `$criteria, $module` | Rút gọn bộ tiêu chí chấm điểm của một module |
+| `seo_point_weights` | filter | `$weights, $module` | Đổi trọng số tiêu chí (6.1.0) |
+| `seo_point_settings` | filter | `$settings, $module` | Đổi ngưỡng `minWords` / `longWords` (6.1.0) |
 | `seo_schema`, `seo_robots`, `seo_canonical` | filter | `$value, $object` | Can thiệp giá trị thủ công trước khi xuất |
 | `seo_canonical_url` | filter | `$url, $paged` | Ghi đè URL canonical đã dựng sẵn (mặc định: URL hiện tại + tham số phân trang nếu có) |
 | `seo_tag_description_default`, `seo_tag_robots_thin` | filter | `$value, $tag` | Tùy biến mô tả mặc định / robots của thẻ mỏng |
@@ -204,7 +209,7 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 5. **Sitemap**: mở thẻ gốc bằng `openUrlset()`/`closeUrlset()`, đừng viết lại chuỗi `<urlset>` — thiếu một namespace là file đó hỏng mà các file khác vẫn chạy. Truyền ảnh qua tham số thứ năm của `itemUrl()`. Dùng slug thô trong `itemUrl()`; muốn phân trang thì theo mẫu `SitemapPost` — khai `LIMIT`, gom điều kiện **và thứ tự sắp xếp** vào một `query()` dùng chung, `register()` trả thêm khoá `pages`, `sitemap()` chỉ dựng đúng một trang. **Đừng tự dựng `<sitemapindex>` bên trong một sitemap con**: chuẩn sitemap không cho lồng index, Google sẽ dừng ở tầng hai. Tham số ngày phải là **ngày sửa thật** (`SitemapService::itemDate($item)` / `maxDate($query)`) — **đừng truyền `DATE_ATOM`**, đó là chuỗi định dạng và từng làm mọi `lastmod` bằng giờ hiện tại. Truyền `null` khi không biết: `lastmod()` bỏ hẳn thẻ, tốt hơn là khai sai.
 6. Nhớ 2 lớp cache: `seo_redirect_{md5(path)}` (chuyển hướng) và cache của core (`tag_*`, `product_detail_*`…) — sửa dữ liệu nguồn thì xóa đúng key.
 7. `HeadService::addMeta` dedupe theo `name` — muốn nhiều thẻ cùng loại (og:*, article:tag) phải dùng `addProperty`.
-8. Đổi giao diện metabox point: `views/point/point.blade.php` nhận `$criteria` từ `AdminPoint::metaBox` và JS chia điểm theo `criteriaKeys.length` — thêm tiêu chí mới phải khai cả ở `SeoPoint::listCriteria()` lẫn nhánh cộng điểm `seoPointAdd('key')`.
+8. Thêm tiêu chí chấm điểm mới phải khai ở **ba** chỗ: `SeoPoint::listCriteria()`, `SeoPoint::weights()`, và một dòng `r.{key} = [đạt, câu báo]` trong `evaluate()` của `views/point/point.blade.php`. Key có trong danh sách mà không có nhánh chấm thì bị bỏ khỏi mẫu số. So khớp từ khóa luôn qua `norm()` + `indexOf` (không dùng `String.search`: từ khóa có `(`, `+` sẽ bị hiểu là regex), dựng DOM nội dung bằng `parseHtml()` (DOMParser; `div.innerHTML` tải lại ảnh mỗi lần gõ).
 
 ## Gotcha còn tồn tại (đã verify)
 
@@ -215,7 +220,6 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - `SitemapProductCategory::sitemap()` khai thêm mục trang chủ trong khi `SitemapPage` đã có `itemHome()` → trang chủ xuất hiện 2 lần trong sitemap. (Slug đã đổi từ `'/'` sang `''` — chuỗi cũ ghép sau tiền tố ngôn ngữ sinh ra `domain.com/en//`.)
 - `db_v4.0.0.php` tạo bản ghi `Router` trỏ `App\Controllers\Web\SeoController` (sai namespace, đúng là `SkdSeo\Controllers\Web`) — vô hại vì file này không còn được chạy và `routes/web.php` đã khai 3 route.
 - `SKD_SEO_VERSION` trong `skd-seo.php` (4.0.8) **lệch** `plugin.json` (5.3.0) và không được đọc ở đâu — nguồn phiên bản thật là `plugin.json`. (`SKD_SEO_PATH` thì có dùng, trong `SitemapService`.)
-- `SeoPoint::registerMetabox()` `foreach` thẳng `Option::get('seo_point_support')` — option chưa từng lưu (null) sẽ sinh warning.
 - `AdminSystem::renderRedirect()` đặt tiêu đề khối là "Chấm điểm seo" (copy nhầm từ `renderPoint`), nội dung thực tế là cấu hình 404.
 - `assets/style.css` và `assets/images/skd-seo.png` không được nạp ở đâu.
 - Plugin khác type-hint cứng `\SkdSeo\Services\HeadService` trong filter `seo_render` (vd `Ecommerce\Controllers\Web\EcommerceController`) → tắt skd-seo sẽ lỗi. Khi đổi chữ ký `HeadService` phải rà các plugin đó.
@@ -251,6 +255,12 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - **Thiết lập seo thủ công của trang lưu trữ không xuất ra ngoài trang**: `AdminPoint::object()` chỉ đọc `Cms::getData('object')` — trang danh mục bài viết / danh mục sản phẩm / thẻ đặt đối tượng ở `category` nên metabox lưu được nhưng frontend không bao giờ đọc tới. Đã thêm nhánh dự phòng `category`. ⚠ Đây là **đổi hành vi**: site nào từng đặt No Index / Canonical cho danh mục thì từ nay thiết lập đó bắt đầu có hiệu lực thật.
 
 ## Lịch sử thay đổi đáng nhớ
+
+- **2026-10 — 6.1.0 (bộ tiêu chí chấm điểm 2026)**:
+  - Bỏ: `keywordDensity` (mật độ 0.75–2.5%), `lengthContent` (600–2500 từ), `keywordInImageAlt`, `contentHasAssets` (≥2 ảnh). Thay bằng `keywordStuffing` (chỉ lỗi khi >3 lần/100 từ và ≥4 lần), `contentNotThin`, `imagesHaveAlt`, `hasFeaturedImage`. Thêm `keywordUnique`, `noH1InContent`, `contentHasSubheadings`, `contentHasLists`, `linksHasExternal`. Điểm có trọng số; kèm khung xem trước Google.
+  - Ngưỡng: tiêu đề ≥30 ký tự và ≤580px (Arial 20px, đúng cách Google cắt); mô tả 110–160 ký tự (trước 160–300); URL ≤75 ký tự, bỏ ngưỡng tối thiểu (trước URL ngắn bị trừ điểm).
+  - Lỗi cũ đã sửa: chấm tiêu đề bài thay vì `seo_title`; `titleStartWithKeyword` đạt cả khi tiêu đề không có từ khóa; `keywordIn10Percent` đòi nội dung bắt đầu đúng bằng từ khóa; vòng H6 quét `h5`; `String.search` coi từ khóa là regex; nội dung rỗng tính 1 từ; `registerMetabox()` warning khi option `seo_point_support` chưa lưu.
+  - ⚠ Điểm của nội dung cũ sẽ khác (chỉ hiện ở admin, không ảnh hưởng frontend).
 
 - **2026-10 — 6.0.4 (chuyển hướng URL cũ khi làm lại site goldfitness.vn từ WordPress)**:
   - `to` tương đối: trước đây gửi thẳng `Location: du-an` nên trình duyệt hiểu theo URL đang mở (`/product/x/du-an`), còn `/du-an` thì mất thư mục con. Thêm `Redirect::targetUrl()` (middleware + `Log404::handle`) và `Redirect::isTarget()` (2 ajax lưu nhanh; `Form` bỏ `->url()`).

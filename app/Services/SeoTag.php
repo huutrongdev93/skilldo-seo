@@ -289,6 +289,7 @@ class SeoTag
         {
             $modules['tag'] = [
                 'class' => \SkdSeo\Modules\Point\Modules\Tag::class,
+                'model' => \SkillDo\Cms\Models\Tag::class,
             ];
         }
 
@@ -311,6 +312,7 @@ class SeoTag
 
         $keys = [
             'keywordNotUsed',
+            'keywordUnique',
             'keywordInTitle',
             'titleStartWithKeyword',
             'lengthTitle',
