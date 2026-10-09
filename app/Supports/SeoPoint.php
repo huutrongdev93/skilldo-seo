@@ -251,7 +251,19 @@ class SeoPoint
         $result = [];
 
         //metadata của bản ghi đã xóa vẫn còn nằm lại: chỉ tính bản ghi còn tồn tại
-        foreach ($model::query()->whereIn('id', $ids)->limit($limit)->get() as $item)
+        $query = $model::query()->whereIn('id', $ids);
+
+        /*
+        | Tính cả bản ghi đang ẩn (bản nháp). Trong admin global scope `public = 1`
+        | tự tắt nên vốn đã thấy; ngoài admin (tool MCP seo_score) scope bật và bỏ
+        | sót bản nháp trùng từ khóa. Đặt điều kiện trên cột public thì scope nhường.
+        */
+        if(in_array('public', schema()->getColumnListing($table), true))
+        {
+            $query->whereIn('public', [0, 1]);
+        }
+
+        foreach ($query->limit($limit)->get() as $item)
         {
             $result[$item->id] = (string)($item->title ?? $item->name ?? ('#'.$item->id));
         }

@@ -57,6 +57,8 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 - Bộ tiêu chí chấm điểm (bộ 2026, 6.1.0, 22 tiêu chí): `SeoPoint::listCriteria()` (key => câu gợi ý khi chưa đạt) + `SeoPoint::criteria($module)` + filter **`seo_point_criteria`**. Điểm **có trọng số**: `SeoPoint::weights($module)` (filter `seo_point_weights`, key lạ = 1), điểm = tổng trọng số đạt / tổng trọng số đang chấm. Nhãn mức quan trọng cạnh mỗi tiêu chí suy ra từ trọng số (`SeoPoint::importance()`: ≥8 Rất quan trọng, ≥5 Quan trọng, còn lại Nên có) và danh sách xếp theo trọng số giảm dần (`SeoPoint::sortByImportance()`, `keywordNotUsed` luôn đứng đầu), nên đổi trọng số là nhãn + thứ tự tự đổi theo. Ngưỡng theo module ở `SeoPoint::settings($module)` (filter `seo_point_settings`: `minWords` 300, sản phẩm/danh mục/thẻ 150; `longWords` 300).
 - JS chấm trên **thứ Google thấy**, không trên từng ô: tiêu đề = `seo_title`, trống thì ô Tiêu đề (`{lang}_title`/`{lang}_name`), cộng hậu tố thương hiệu như `HeadService::documentTitle()` (brand/separator truyền từ PHP); mô tả = `seo_description`, trống thì excerpt. Ô Tiêu đề là H1 do giao diện in ra → nội dung **không được có H1** (`noH1InContent`), không đòi H1.
 - Form thiếu editor nội dung (`#{lang}_content`) thì JS **tự ẩn** mọi tiêu chí nội dung; thiếu ô `image` thì ẩn `hasFeaturedImage`. Filter `seo_point_criteria` vẫn dùng được nhưng không còn bắt buộc cho trường hợp đó.
+- **Chấm điểm phía máy chủ (`SeoAnalyzer`, cho MCP)**: bản PHP chép 1-1 `collect()` / `evaluate()` / `render()` của JS. Hai bản PHẢI chấm giống nhau: `tool/test-seo-point.php` render metabox thật với 10 bài mẫu, chạy bằng Chromium headless (bản Playwright cài sẵn hoặc `CHROME_PATH`) rồi so từng tiêu chí + điểm với PHP. Khác biệt có chủ đích duy nhất: độ rộng tiêu đề (JS đo canvas, PHP tra bảng `ARIAL_WIDTHS`), chỉ lệch khi tiêu đề sát 580px.
+- **Tool MCP** (`app/Mcp/`, khai ở `bootstrap/mcp.php` qua filter `cms_mcp_tools` của plugin mcp-server, chỉ khi bật `seo_point`): `seo_guidelines` (bộ tiêu chí + ngưỡng + cách Google đọc tiêu đề/mô tả), `seo_score` (chấm bài đã lưu, hoặc bản nháp qua `draft`), `seo_update` (từ khóa chính, index, robots, canonical qua đúng setter của module như `AdminPoint::save()`; schema thủ công cố ý không mở). Loại nội dung chưa tick ở `seo_point_support` thì tool từ chối. Kiểm: `tool/test-mcp.php`.
 - `keywordUnique`: ajax `SkdSeo\Ajax\Point::duplicate` → `SeoPoint::duplicateKeyword()`, tra metadata `seo_focus_keyword` theo **khoá `model` trong registry module** (`SeoPoint::module()`, `SeoTag`, `SeoTravel` đều khai). Module không khai `model` thì coi như không trùng.
 
 ### 4. Chuyển hướng & nhật ký 404
@@ -93,6 +95,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 | `ajax.php` | Registry ajax: `SkdSeo\Ajax\Redirect::save`, `SkdSeo\Ajax\Long404::save` (⚠ xem Gotcha) |
 | `noindex.php` | Chặn lập chỉ mục toàn site (site demo). Cả file bọc trong `if(!NoIndexService::enabled() || Admin::is()) return;` |
 | `travel.php` | Cầu nối plugin travel — mọi callback tự kiểm tra `class_exists` trước |
+| `mcp.php` | Khai 3 tool MCP (`seo_guidelines`, `seo_score`, `seo_update`) vào filter `cms_mcp_tools` khi bật `seo_point`. Class ở `app/Mcp/` (PSR-4 `SkdSeo\Mcp` khai trong `plugin.json`) |
 | `tag.php` | Cầu nối chức năng Thẻ của CMS 8.1.3+ — mọi callback tự kiểm tra `SeoTag::support()` |
 
 ### app/Services/ — phần lõi
@@ -118,6 +121,7 @@ Bật/tắt bằng option `seo_point`; danh sách module áp dụng ở option `
 ### app/Supports/
 
 - `SeoPoint.php` — registry module chấm điểm (`module()`, mỗi mục `class` + `model`), danh sách 22 tiêu chí (`listCriteria()`), trọng số (`weights()`), ngưỡng (`settings()`), tìm từ khóa trùng (`duplicateKeyword()`), bộ tiêu chí theo module (`criteria()`), đăng ký metabox (`registerMetabox()` — có xử lý riêng cho key dạng `post_{postType}` / `post_categories_{cateType}`).
+- `SeoAnalyzer.php` — chấm điểm phía máy chủ, bản PHP của JS metabox (`analyze($module, $input, $context)` → `score` + từng tiêu chí). Dùng cho tool MCP `seo_score` / `seo_update`.
 - `SKDSeoSchemaBreadcrumb.php` — bơm microdata `BreadcrumbList` vào breadcrumb của theme qua 4 filter `breadcrumb_*`.
 
 ### app/Modules/
@@ -209,7 +213,7 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 5. **Sitemap**: mở thẻ gốc bằng `openUrlset()`/`closeUrlset()`, đừng viết lại chuỗi `<urlset>` — thiếu một namespace là file đó hỏng mà các file khác vẫn chạy. Truyền ảnh qua tham số thứ năm của `itemUrl()`. Dùng slug thô trong `itemUrl()`; muốn phân trang thì theo mẫu `SitemapPost` — khai `LIMIT`, gom điều kiện **và thứ tự sắp xếp** vào một `query()` dùng chung, `register()` trả thêm khoá `pages`, `sitemap()` chỉ dựng đúng một trang. **Đừng tự dựng `<sitemapindex>` bên trong một sitemap con**: chuẩn sitemap không cho lồng index, Google sẽ dừng ở tầng hai. Tham số ngày phải là **ngày sửa thật** (`SitemapService::itemDate($item)` / `maxDate($query)`) — **đừng truyền `DATE_ATOM`**, đó là chuỗi định dạng và từng làm mọi `lastmod` bằng giờ hiện tại. Truyền `null` khi không biết: `lastmod()` bỏ hẳn thẻ, tốt hơn là khai sai.
 6. Nhớ 2 lớp cache: `seo_redirect_{md5(path)}` (chuyển hướng) và cache của core (`tag_*`, `product_detail_*`…) — sửa dữ liệu nguồn thì xóa đúng key.
 7. `HeadService::addMeta` dedupe theo `name` — muốn nhiều thẻ cùng loại (og:*, article:tag) phải dùng `addProperty`.
-8. Thêm tiêu chí chấm điểm mới phải khai ở **ba** chỗ: `SeoPoint::listCriteria()`, `SeoPoint::weights()`, và một dòng `r.{key} = [đạt, câu báo]` trong `evaluate()` của `views/point/point.blade.php`. Key có trong danh sách mà không có nhánh chấm thì bị bỏ khỏi mẫu số. So khớp từ khóa luôn qua `norm()` + `indexOf` (không dùng `String.search`: từ khóa có `(`, `+` sẽ bị hiểu là regex), dựng DOM nội dung bằng `parseHtml()` (DOMParser; `div.innerHTML` tải lại ảnh mỗi lần gõ).
+8. Thêm / sửa tiêu chí chấm điểm phải khai ở **bốn** chỗ: `SeoPoint::listCriteria()`, `SeoPoint::weights()`, một dòng `r.{key} = [đạt, câu báo]` trong `evaluate()` của `views/point/point.blade.php`, **và nhánh tương ứng trong `SeoAnalyzer::evaluate()`** (bản PHP cho MCP). Chạy `tool/test-seo-point.php` sau khi sửa: lệch JS ↔ PHP là đỏ. Key có trong danh sách mà không có nhánh chấm thì bị bỏ khỏi mẫu số. So khớp từ khóa luôn qua `norm()` + `indexOf` (không dùng `String.search`: từ khóa có `(`, `+` sẽ bị hiểu là regex), dựng DOM nội dung bằng `parseHtml()` (DOMParser; `div.innerHTML` tải lại ảnh mỗi lần gõ).
 
 ## Gotcha còn tồn tại (đã verify)
 
@@ -255,6 +259,8 @@ Metadata SEO **không có bảng riêng**: đi qua `Model::updateMeta()` → `Me
 - **Thiết lập seo thủ công của trang lưu trữ không xuất ra ngoài trang**: `AdminPoint::object()` chỉ đọc `Cms::getData('object')` — trang danh mục bài viết / danh mục sản phẩm / thẻ đặt đối tượng ở `category` nên metabox lưu được nhưng frontend không bao giờ đọc tới. Đã thêm nhánh dự phòng `category`. ⚠ Đây là **đổi hành vi**: site nào từng đặt No Index / Canonical cho danh mục thì từ nay thiết lập đó bắt đầu có hiệu lực thật.
 
 ## Lịch sử thay đổi đáng nhớ
+
+- **2026-10 — tool MCP chấm điểm SEO (6.2.0)**: `SeoAnalyzer` + 3 tool MCP + 2 bộ kiểm thử (`tool/test-seo-point.php` so JS ↔ PHP qua Chromium, `tool/test-mcp.php`). Sửa kèm: `SeoPoint::duplicateKeyword()` bỏ sót bản nháp trùng từ khóa khi chạy ngoài admin (global scope `public = 1`), nay đặt `whereIn('public', [0, 1])`.
 
 - **2026-10 — 6.1.0 (bộ tiêu chí chấm điểm 2026)**:
   - Bỏ: `keywordDensity` (mật độ 0.75–2.5%), `lengthContent` (600–2500 từ), `keywordInImageAlt`, `contentHasAssets` (≥2 ảnh). Thay bằng `keywordStuffing` (chỉ lỗi khi >3 lần/100 từ và ≥4 lần), `contentNotThin`, `imagesHaveAlt`, `hasFeaturedImage`. Thêm `keywordUnique`, `noH1InContent`, `contentHasSubheadings`, `contentHasLists`, `linksHasExternal`. Điểm có trọng số; kèm khung xem trước Google.

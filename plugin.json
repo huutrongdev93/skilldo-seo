@@ -4,14 +4,15 @@
     "url":"https://sikido.vn",
     "description":"Ứng dụng Tùy chỉnh SEO sẽ giúp bạn tự SEO hiệu quả cho website của mình",
     "author":"SKDSoftware Dev Team",
-    "version":"6.1.0",
+    "version":"6.2.0",
     "thumb": "assets/thumb.png",
     "providers": [
         "SkdSeo\\Providers\\SkdSeoServiceProvider"
     ],
     "autoload": {
         "psr-4": {
-            "SkdSeo\\Modules" : "app\\Modules"
+            "SkdSeo\\Modules" : "app\\Modules",
+            "SkdSeo\\Mcp" : "app\\Mcp"
         }
     },
     "middlewares": {
